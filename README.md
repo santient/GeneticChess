@@ -60,3 +60,4 @@ Evaluation: 0.0
 FEN: 3n4/Q5n1/p1N1QNq1/pnPrBK1P/p1p1P3/1P1P1k2/1P2p3/8 w - - 0 1
 
 ```
+![Example Generated Position](position.png)
