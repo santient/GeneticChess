@@ -14,8 +14,8 @@ o       O o       O o       O  /_____\
 Genetic Chess
 By Santiago Benoit
 
-Arguments: Namespace(stockfish='./stockfish', depth=15, seed=None, generations=15, population_size=10,
-                     mutation_rate=0.03125, final_depth=25)
+Arguments: Namespace(stockfish='./stockfish', depth=15, final_depth=25, seed=3752869713, density=0.5,
+                     generations=15, population_size=10, mutation_rate=0.03125)
 Stockfish version: 15
 Random seed: 3752869713
 
@@ -70,17 +70,19 @@ FEN: 3n4/Q5n1/p1N1QNq1/pnPrBK1P/p1p1P3/1P1P1k2/1P2p3/8 w - - 0 1
 
 ## Usage
 ```
-python GeneticChess.py [-h] --stockfish STOCKFISH [--depth DEPTH] [--seed SEED] [--generations GENERATIONS]
-                       [--population-size POPULATION_SIZE] [--mutation-rate MUTATION_RATE] [--final-depth FINAL_DEPTH]
+python GeneticChess.py [-h] --stockfish STOCKFISH [--depth DEPTH] [--final-depth FINAL_DEPTH]
+                       [--seed SEED] [--density DENSITY] [--generations GENERATIONS]
+                       [--population-size POPULATION_SIZE] [--mutation-rate MUTATION_RATE]
 
 options:
   -h, --help            show this help message and exit
   --stockfish STOCKFISH
                         path to stockfish binary
   --depth DEPTH
+  --final-depth FINAL_DEPTH
   --seed SEED
+  --density DENSITY
   --generations GENERATIONS
   --population-size POPULATION_SIZE
   --mutation-rate MUTATION_RATE
-  --final-depth FINAL_DEPTH
 ```
