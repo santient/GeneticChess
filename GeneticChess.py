@@ -7,10 +7,10 @@ from stockfish import Stockfish, StockfishException
 
 
 PIECES = ["", "P", "N", "B", "R", "Q", "p", "n", "b", "r", "q", "K", "k"]
-PROBS = [32/62, 8/62, 2/62, 2/62, 2/62, 1/62, 8/62, 2/62, 2/62, 2/62, 1/62]
-assert math.isclose(sum(PROBS), 1)
+WEIGHTS = [32, 8, 2, 2, 2, 1, 8, 2, 2, 2, 1]
 args = None
 engine = None
+probs = None
 # Composed from ASCII art archive. Credit to Brent James Benton for the knight.
 dna = r"""
                                  |\_
@@ -71,7 +71,7 @@ def evaluate(fen):
 def randomize():
     val = None
     while val is None:
-        board = np.random.choice(11, p=PROBS, size=(8, 8))
+        board = np.random.choice(11, p=probs, size=(8, 8))
         kings = np.random.randint(8, size=(2, 2))
         board[kings[0, 0], kings[0, 1]] = 11
         board[kings[1, 0], kings[1, 1]] = 12
@@ -85,7 +85,7 @@ def mutate(board, kings):
     val = None
     while val is None:
         mask = np.random.binomial(1, p=args.mutation_rate, size=(8, 8))
-        delta = np.random.choice(11, p=PROBS, size=(8, 8)) * mask
+        delta = np.random.choice(11, p=probs, size=(8, 8)) * mask
         board_new = board * (1 - mask) + delta
         kings_new = kings.copy()
         if board_new[kings[0, 0], kings[0, 1]] != 11:
@@ -138,11 +138,12 @@ def get_args():
     parser = argparse.ArgumentParser()
     parser.add_argument("--stockfish", required=True, help="path to stockfish binary", type=str)
     parser.add_argument("--depth", type=int, default=15)
+    parser.add_argument("--final-depth", type=int, default=25)
     parser.add_argument("--seed", type=int, default=None)
+    parser.add_argument("--density", type=float, default=0.5)
     parser.add_argument("--generations", type=int, default=15)
     parser.add_argument("--population-size", type=int, default=10)
     parser.add_argument("--mutation-rate", type=float, default=2/64)
-    parser.add_argument("--final-depth", type=int, default=25)
     args = parser.parse_args()
     return args
 
@@ -157,6 +158,7 @@ def header():
 def main():
     global args
     global engine
+    global probs
     header()
     args = get_args()
     print("Arguments:", args)
@@ -168,6 +170,11 @@ def main():
     print("Random seed:", seed)
     random.seed(seed)
     np.random.seed(seed)
+    probs = np.array(WEIGHTS) / 32
+    probs[0] = (1 - args.density) * probs[0]
+    probs[1:] = args.density * probs[1:]
+    probs = probs / probs.sum()
+    assert math.isclose(sum(probs), 1)
     fen, val = evolve()
     results(fen, val)
 
