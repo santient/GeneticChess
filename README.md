@@ -15,6 +15,7 @@ Genetic Chess
 By Santiago Benoit
 
 Arguments: Namespace(stockfish='./stockfish', depth=15, seed=None, generations=15, population_size=10, mutation_rate=0.03125, final_depth=25)
+Stockfish version: 15
 Random seed: 3752869713
 
 [Generation 0] [Evaluation -12.01] [FEN 8/2r3n1/p1NpQNp1/1nPrBK2/1np1P3/1P1Prk2/1P2p3/8 w - - 0 1]
