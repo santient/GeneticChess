@@ -161,6 +161,7 @@ def main():
     args = get_args()
     print("Arguments:", args)
     engine = Stockfish(path=args.stockfish, depth=args.depth)
+    print("Stockfish version:", engine.get_stockfish_major_version())
     seed = args.seed
     if seed is None:
         seed = np.random.randint(2**32)
