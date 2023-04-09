@@ -81,7 +81,7 @@ def randomize():
     return board, kings, fen, val
 
 
-def mutate(board, kings):
+def mutate(board, kings, fen):
     val = None
     while val is None:
         mask = np.random.binomial(1, p=args.mutation_rate, size=(8, 8))
@@ -95,22 +95,20 @@ def mutate(board, kings):
             kings_new[1] = np.random.randint(8, size=2)
             board_new[kings_new[1, 0], kings_new[1, 1]] = 12
         remove_backrank_pawns(board_new)
-        fen = board_to_fen(board_new)
-        val = evaluate(fen)
-    return board_new, kings_new, fen, val
+        fen_new = board_to_fen(board_new)
+        if fen_new != fen:
+            val = evaluate(fen_new)
+    return board_new, kings_new, fen_new, val
 
 
 def evolve():
     best = randomize()
     board, kings, fen, val = best
-    print()
     print(f"[Generation 0] [Evaluation {val}] [FEN {fen}]")
     for gen in range(args.generations):
         pop = [best]
-        for i in range(args.population_size - 1):
-            fen_new = fen
-            while fen_new == fen:
-                board_new, kings_new, fen_new, val_new = mutate(board, kings)
+        for i in range(args.population_size):
+            board_new, kings_new, fen_new, val_new = mutate(board, kings, fen)
             pop.append((board_new, kings_new, fen_new, val_new))
         random.shuffle(pop)
         best = list(sorted(enumerate(pop), key=lambda x: (abs(x[1][3]), x[0])))[0][1]
@@ -175,6 +173,7 @@ def main():
     probs[1:] = args.density * probs[1:]
     probs = probs / probs.sum()
     assert math.isclose(sum(probs), 1)
+    print()
     fen, val = evolve()
     results(fen, val)
 
