@@ -1,17 +1,17 @@
 # Genetic Chess
 ## Balanced, asymmetrical chess position generation using genetic algorithms and Stockfish evaluation.
 
-![Generated Position 1](position1.png)
-2nrk1br/pppbb1p1/3rp1np/3r1p2/7P/PPP1P3/2QPNPP1/1R1KBQ1B w - - 0 1
+`2nrk1br/pppbb1p1/3rp1np/3r1p2/7P/PPP1P3/2QPNPP1/1R1KBQ1B w - - 0 1`
+![Generated Position 1](img/position1.png)
 
-![Generated Position 2](position2.png)
-2r1nkq1/p2prqrb/1pp1p1p1/5p1p/1BNP4/2NPP2P/2PN1PP1/QBKB1R2 w - - 0 1
+`2r1nkq1/p2prqrb/1pp1p1p1/5p1p/1BNP4/2NPP2P/2PN1PP1/QBKB1R2 w - - 0 1`
+![Generated Position 2](img/position2.png)
 
-![Generated Position 3](position3.png)
-1rbk4/1rrbbpnp/1pppp3/4r1p1/4R3/2PQP1P1/PP1PRP1P/4KNRB w - - 0 1
+`1rbk4/1rrbbpnp/1pppp3/4r1p1/4R3/2PQP1P1/PP1PRP1P/4KNRB w - - 0 1`
+![Generated Position 3](img/position3.png)
 
-![Generated Position 4](position4.png)
-q1knb3/ppprpp2/1r1p3p/1nrr2p1/3PN3/PP1NN3/NPPQPPPP/R2KB3 w - - 0 1
+`q1knb3/ppprp3/1n1p3p/1nrr2p1/3PP3/PP1BN3/NPPQPPPP/R2KB3 w - - 0 1`
+![Generated Position 4](img/position4.png)
 
 ```
                                  |\_
