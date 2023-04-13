@@ -224,7 +224,7 @@ def evolve_balance(res):
     error = abs(val - args.odds)
     print(f"[Generation 0] [Evaluation {val}] [FEN {fen}]")
     gen = 0
-    while error > args.target_error:
+    while error > args.error:
         gen += 1
         pop = [best]
         for i in range(10):
@@ -254,12 +254,12 @@ def results(fen):
 
 def get_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--stockfish", default="./stockfish", help="path to stockfish binary", type=str)
-    parser.add_argument("--depth", type=int, default=20)
-    parser.add_argument("--final-depth", type=int, default=30)
-    parser.add_argument("--seed", type=int, default=None)
-    parser.add_argument("--odds", type=float, default=0.0)
-    parser.add_argument("--target-error", type=float, default=0.1)
+    parser.add_argument("--stockfish", type=str, default="./stockfish", help="path to stockfish binary (default ./stockfish)")
+    parser.add_argument("--depth", type=int, default=20, help="balance evaluation depth (default 20)")
+    parser.add_argument("--final-depth", type=int, default=30, help="final evaluation depth (default 30)")
+    parser.add_argument("--seed", type=int, default=None, help="random seed (default random)")
+    parser.add_argument("--odds", type=float, default=0.0, help="target evaluation (default 0.0)")
+    parser.add_argument("--error", type=float, default=0.1, help="target error margin for evaluation (default 0.1)")
     args = parser.parse_args()
     return args
 
