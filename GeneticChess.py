@@ -21,9 +21,6 @@ PROBS = np.array([16/31, 8/31, 2/31, 2/31, 2/31, 1/31])
 assert math.isclose(sum(PROBS), 1)
 args = None
 seed = None
-# engine = None
-# probs = None
-# Composed from ASCII art archive. Credit to Brent James Benton for the knight.
 dna = r"""
                                  |\_
 O       o O       o O       o   /  .\_
@@ -48,105 +45,13 @@ class ChessProblem(ElementwiseProblem):
         f1 = eval_pawns(board)
         remove_backrank_pawns(board)
         f2 = eval_points(board)
-        # f3 = eval_pieces(board)
         f3 = eval_empty(board)
         f4 = eval_kings(kings) + eval_proximity(board, kings) + eval_offside(board)
-        # fen = board_to_fen(board)
-        # val = evaluate(fen)
-        # val = "test"
-        # if val is not None:
-        # f1 = abs(val)
-        # f2 = eval_empty(board)
-        # f3 = eval_pieces(board)
-        # f4 = eval_balance(board)
-        # f3 = eval_points(board)
-        # f5 = eval_kings(kings)
-        # f6 = eval_fortress(board, kings)
-        # h1 = 0
-
         out["F"] = [f1, f2, f3, f4]
-        # out["F"] = f1 + f2 + f3 + f5 + f6
-        # out["H"] = h1
-        # else:
-            # h1 = 1
-            # out["F"] = [np.inf, np.inf, np.inf, np.inf, f5]
-            # out["H"] = h1
-
-
-# def get_density(board):
-#     return (board > 0).sum() / 64
-
-
-# def eval_density(board):
-#     return abs(args.density * 64 - get_density(board) * 64)
-
-
-# def eval_pieces(board):
-#     w = ((board > 1) * (board <= 5)).sum()
-#     b = ((board > 6) * (board <= 10)).sum()
-#     return abs(w - 7) + abs(b - 7)
 
 
 def eval_empty(board):
     return abs((board == 0).sum() - 32)
-    # w = ((board >= 1) * (board <= 5)).sum()
-    # b = ((board >= 6) * (board <= 10)).sum()
-    # return abs(w - 15) + abs(b - 15)
-
-
-# def eval_pieces(board):
-#     none = (board == 0).sum()
-#     P = (board == 1).sum()
-#     N = (board == 2).sum()
-#     B = (board == 3).sum()
-#     R = (board == 4).sum()
-#     Q = (board == 5).sum()
-#     p = (board == 6).sum()
-#     n = (board == 7).sum()
-#     b = (board == 8).sum()
-#     r = (board == 9).sum()
-#     q = (board == 10).sum()
-#     # K = (board == 11).sum()
-#     # k = (board == 12).sum()
-#     # assert K == 1 and k == 1
-#     return abs(none - 32) + abs(P - 8) + abs(N - 2) + abs(B - 2) + abs(R - 2) + abs(Q - 1) + abs(p - 8) + abs(n - 2) + abs(b - 2) + abs(r - 2) + abs(q - 1)
-
-
-# def eval_pieces(board):
-#     none = (board == 0).sum()
-#     P = (board == 1).sum()
-#     N = (board == 2).sum()
-#     B = (board == 3).sum()
-#     R = (board == 4).sum()
-#     Q = (board == 5).sum()
-#     p = (board == 6).sum()
-#     n = (board == 7).sum()
-#     b = (board == 8).sum()
-#     r = (board == 9).sum()
-#     q = (board == 10).sum()
-#     # K = (board == 11).sum()
-#     # k = (board == 12).sum()
-#     # assert K == 1 and k == 1
-#     return abs(none - 32) + abs(P - 8) + abs(N - 2) + abs(B - 2) + abs(R - 2) + abs(Q - 1) + abs(p - 8) + abs(n - 2) + abs(b - 2) + abs(r - 2) + abs(q - 1)
-
-
-# def eval_balance(board):
-#     P = (board == 1).sum()
-#     N = (board == 2).sum()
-#     B = (board == 3).sum()
-#     R = (board == 4).sum()
-#     Q = (board == 5).sum()
-#     p = (board == 6).sum()
-#     n = (board == 7).sum()
-#     b = (board == 8).sum()
-#     r = (board == 9).sum()
-#     q = (board == 10).sum()
-#     # K = (board == 11).sum()
-#     # k = (board == 12).sum()
-#     # assert K == 1 and k == 1
-#     w = P * 1 + N * 3 + B * 3 + R * 5 + Q * 9
-#     b = p * 1 + n * 3 + b * 3 + r * 5 + q * 9
-#     return abs(w - b)
 
 
 def eval_pawns(board):
@@ -155,7 +60,6 @@ def eval_pawns(board):
     b = (board[1:7] == 6).sum()
     wc = sum(abs((board[1:7, i] == 1).sum() - 1) for i in range(8))
     bc = sum(abs((board[1:7, i] == 6).sum() - 1) for i in range(8))
-    # print(w, b)
     return back + abs(w - 8) + abs(b - 8) + wc + bc
 
 
@@ -170,12 +74,8 @@ def eval_points(board):
     b = (board == 8).sum()
     r = (board == 9).sum()
     q = (board == 10).sum()
-    # K = (board == 11).sum()
-    # k = (board == 12).sum()
-    # assert K == 1 and k == 1
     w = P * 1 + N * 3 + B * 3 + R * 5 + Q * 9
     b = p * 1 + n * 3 + b * 3 + r * 5 + q * 9
-    # return abs(w - b)
     return abs(w - 40) + abs(b - 40)
 
 
@@ -193,10 +93,8 @@ def eval_proximity(board, kings):
                 count += 1
                 if cell <= 5:
                     total += abs(i - kings[0, 0]) + abs(j - kings[0, 1])
-                    # total -= abs(i - kings[1, 0]) + abs(j - kings[1, 1])
                 else:
                     total += abs(i - kings[1, 0]) + abs(j - kings[1, 1])
-                    # total -= abs(i - kings[0, 0]) + abs(j - kings[0, 1])
     if count > 0:
         return abs(total / count - 3)
     else:
@@ -208,8 +106,6 @@ def eval_offside(board):
 
 
 def vector_to_board(x):
-    # print(x.dtype)
-    # x = x.round().astype(int)
     board = INDICES[x[:64]].reshape((8, 8))
     kings = x[64:].reshape((2, 2))
     board[kings[0, 0], kings[0, 1]] = 11
@@ -252,15 +148,6 @@ def count_backrank_pawns(board):
     return count
 
 
-# def backrank_pawns(board):
-#     for i in range(8):
-#         if PIECES[board[0, i]].lower() == "p":
-#             return True
-#         if PIECES[board[7, i]].lower() == "p":
-#             return True
-#     return False
-
-
 def remove_backrank_pawns(board):
     for i in range(8):
         if PIECES[board[0, i]].lower() == "p":
@@ -270,7 +157,6 @@ def remove_backrank_pawns(board):
 
 
 def evaluate(fen, final=False):
-    # global engine
     if backrank_pawns(fen):
         return None
     engine = Stockfish(path=args.stockfish, depth=(args.final_depth if final else args.depth))
@@ -280,7 +166,6 @@ def evaluate(fen, final=False):
         engine.set_fen_position(fen)
         val = engine.get_evaluation()
     except StockfishException:
-        # engine = Stockfish(path=args.stockfish, depth=args.depth)
         return None
     if val["type"] != "cp":
         return None
@@ -296,65 +181,15 @@ def evolve():
         crossover=SBX(prob=1.0, eta=3.0, vtype=float, repair=RoundingRepair()),
         mutation=PM(prob=1.0, eta=3.0, vtype=float, repair=RoundingRepair()),
         eliminate_duplicates=True)
-    # termination = DefaultMultiObjectiveTermination(
-    #     xtol=1e-8,
-    #     cvtol=1e-6,
-    #     ftol=0.0025,
-    #     period=30,
-    #     n_max_gen=10000,
-    #     n_max_evals=1000000
-    # )
     res = minimize(problem,
         algorithm,
-        # termination=("n_gen", 1000),
-        # termination=termination,
         seed=seed,
         verbose=True)
     return res
 
 
-# def randomize():
-#     val = None
-#     while val is None:
-#         board = np.random.choice(11, p=probs, size=(8, 8))
-#         kings = np.random.randint(8, size=(2, 2))
-#         board[kings[0, 0], kings[0, 1]] = 11
-#         board[kings[1, 0], kings[1, 1]] = 12
-#         remove_backrank_pawns(board)
-#         fen = board_to_fen(board)
-#         val = evaluate(fen)
-#     return board, kings, fen, val
-
-
-# def mutate(board, kings, fen):
-#     val = None
-#     while val is None:
-#         mask = np.random.binomial(1, p=args.mutation_rate, size=(8, 8))
-#         delta = np.random.choice(11, p=probs, size=(8, 8)) * mask
-#         board_new = board * (1 - mask) + delta
-#         kings_new = kings.copy()
-#         if board_new[kings[0, 0], kings[0, 1]] != 11:
-#             kings_new[0] = np.random.randint(8, size=2)
-#             board_new[kings_new[0, 0], kings_new[0, 1]] = 11
-#         if board_new[kings[1, 0], kings[1, 1]] != 12:
-#             kings_new[1] = np.random.randint(8, size=2)
-#             board_new[kings_new[1, 0], kings_new[1, 1]] = 12
-#         remove_backrank_pawns(board_new)
-#         fen_new = board_to_fen(board_new)
-#         if fen_new != fen:
-#             val = evaluate(fen_new)
-#     return board_new, kings_new, fen_new, val
-
-
-# def vectors_to_pop(xs):
-#     pop = []
-#     for x in xs:
-
-
-
 def mutate_balance(board, kings, fen):
     val = None
-    # success = False
     while val is None:
         w_src_i, w_src_j = kings[0]
         while w_src_i == kings[0, 0] and w_src_j == kings[0, 1]:
@@ -375,20 +210,6 @@ def mutate_balance(board, kings, fen):
         fen_new = board_to_fen(board_new)
         if fen_new != fen:
             val = evaluate(fen_new)
-        # mask = np.random.binomial(1, p=args.mutation_rate, size=(8, 8))
-        # delta = np.random.choice(11, p=probs, size=(8, 8)) * mask
-        # board_new = board * (1 - mask) + delta
-        # kings_new = kings.copy()
-        # if board_new[kings[0, 0], kings[0, 1]] != 11:
-        #     kings_new[0] = np.random.randint(8, size=2)
-        #     board_new[kings_new[0, 0], kings_new[0, 1]] = 11
-        # if board_new[kings[1, 0], kings[1, 1]] != 12:
-        #     kings_new[1] = np.random.randint(8, size=2)
-        #     board_new[kings_new[1, 0], kings_new[1, 1]] = 12
-        # remove_backrank_pawns(board_new)
-        # fen_new = board_to_fen(board_new)
-        # if fen_new != fen:
-        #     val = evaluate(fen_new)
     return board_new, kings, fen_new, val
 
 
@@ -399,9 +220,6 @@ def evolve_balance(res):
     val = evaluate(fen)
     if val is None:
         val = np.inf
-    # best = randomize()
-    # random.shuffle(pop)
-    # best = list(sorted(enumerate(pop), key=lambda x: (abs(x[1][3]), x[0])))[0][1]
     best = (board, kings, fen, val)
     error = abs(val - args.odds)
     print(f"[Generation 0] [Evaluation {val}] [FEN {fen}]")
@@ -417,22 +235,13 @@ def evolve_balance(res):
         board, kings, fen, val = best
         error = abs(val - args.odds)
         print(f"[Generation {gen}] [Evaluation {val}] [FEN {fen}]")
-    # engine.set_depth(args.final_depth)
-    # engine.set_fen_position(fen)
-    # val = engine.get_evaluation()["value"] / 100
     return fen
 
 
 def results(fen):
-    # print(res.X.shape)
-    # board, kings = vector_to_board(res.X[0])
-    # remove_backrank_pawns(board)
-    # fen = board_to_fen(board)
     val = None
     while val is None:
         val = evaluate(fen, final=True)
-    # assert val is not None
-    # val /= 100
     print("RESULTS\n")
     engine = Stockfish(path=args.stockfish, depth=args.final_depth)
     engine.set_fen_position(fen)
@@ -440,7 +249,6 @@ def results(fen):
     print(vis)
     print("Evaluation:", val)
     print("FEN:", fen)
-    # print(board[0])
     print()
 
 
@@ -452,10 +260,6 @@ def get_args():
     parser.add_argument("--seed", type=int, default=None)
     parser.add_argument("--odds", type=float, default=0.0)
     parser.add_argument("--target-error", type=float, default=0.1)
-    # parser.add_argument("--density", type=float, default=0.5)
-    # parser.add_argument("--generations", type=int, default=100)
-    # parser.add_argument("--pop-size", type=int, default=100)
-    # parser.add_argument("--mutation-rate", type=float, default=1.0)
     args = parser.parse_args()
     return args
 
@@ -470,8 +274,6 @@ def header():
 def main():
     global args
     global seed
-    # global engine
-    # global probs
     header()
     args = get_args()
     print("Arguments:", args)
@@ -484,11 +286,6 @@ def main():
     print("Random seed:", seed)
     random.seed(seed)
     np.random.seed(seed)
-    # probs = np.array(WEIGHTS) / 32
-    # probs[0] = (1 - args.density) * probs[0]
-    # probs[1:] = args.density * probs[1:]
-    # probs = probs / probs.sum()
-    # assert math.isclose(sum(probs), 1)
     print("\nEvolving structure...\n")
     res = evolve()
     print("\nEvolving balance...\n")
