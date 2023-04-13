@@ -5,7 +5,13 @@
 2nrk1br/pppbb1p1/3rp1np/3r1p2/7P/PPP1P3/2QPNPP1/1R1KBQ1B w - - 0 1
 
 ![Generated Position 2](position2.png)
+2r1nkq1/p2prqrb/1pp1p1p1/5p1p/1BNP4/2NPP2P/2PN1PP1/QBKB1R2 w - - 0 1
+
 ![Generated Position 3](position3.png)
+1rbk4/1rrbbpnp/1pppp3/4r1p1/4R3/2PQP1P1/PP1PRP1P/4KNRB w - - 0 1
+
+![Generated Position 4](position4.png)
+q1knb3/ppprpp2/1r1p3p/1nrr2p1/3PN3/PP1NN3/NPPQPPPP/R2KB3 w - - 0 1
 
 ```
                                  |\_
@@ -67,15 +73,17 @@ FEN: 2nrk1br/pppbb1p1/3rp1np/3r1p2/7P/PPP1P3/2QPNPP1/1R1KBQ1B w - - 0 1
 ## Usage
 ```
 python GeneticChess.py [-h] [--stockfish STOCKFISH] [--depth DEPTH] [--final-depth FINAL_DEPTH]
-                       [--seed SEED] [--odds ODDS] [--target-error TARGET_ERROR]
+                       [--seed SEED] [--odds ODDS] [--error ERROR]
 
 options:
   -h, --help            show this help message and exit
   --stockfish STOCKFISH
-                        path to stockfish binary
-  --depth DEPTH
+                        path to stockfish binary (default ./stockfish)
+  --depth DEPTH         balance evaluation depth (default 20)
   --final-depth FINAL_DEPTH
-  --seed SEED
-  --odds ODDS
-  --target-error TARGET_ERROR
+                        final evaluation depth (default 30)
+  --seed SEED           random seed (default random)
+  --odds ODDS           target evaluation (default 0.0)
+  --error ERROR
+                        target error margin for evaluation (default 0.1)
 ```
