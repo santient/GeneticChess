@@ -25,7 +25,7 @@ o       O o       O o       O  /_____\
 Genetic Chess
 By Santiago Benoit
 
-Arguments: Namespace(stockfish='./stockfish', depth=20, final_depth=30, seed=None, odds=0.0, target_error=0.1)
+Arguments: Namespace(stockfish='./stockfish', depth=20, final_depth=30, seed=None, odds=0.0, error=0.1)
 Stockfish version: 15
 Random seed: 2252179159
 
