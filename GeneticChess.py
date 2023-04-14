@@ -9,9 +9,9 @@ from pymoo.operators.mutation.pm import PM
 from pymoo.operators.repair.rounding import RoundingRepair
 from pymoo.operators.sampling.rnd import IntegerRandomSampling
 from pymoo.optimize import minimize
-from pymoo.termination.default import DefaultMultiObjectiveTermination
 import random
 from stockfish import Stockfish, StockfishException
+import time
 
 
 PIECES = ["", "P", "N", "B", "R", "Q", "p", "n", "b", "r", "q", "K", "k"]
@@ -29,7 +29,7 @@ O       o O       o O       o   /  .\_
 | o   O | | o   O | | o   O |  |  =  |
 o       O o       O o       O  /_____\
                               [_______]
-"""
+""" # Composed from ASCII art archive. Credit to Brent James Benton for the knight.
 
 
 class ChessProblem(ElementwiseProblem):
@@ -171,7 +171,12 @@ def evaluate(fen, final=False):
         return None
     if not final and val["value"] == 0:
         return None
-    return val["value"] / 100
+    val = val["value"] / 100
+    if final:
+        vis = engine.get_board_visual()
+        return val, vis
+    else:
+        return val
 
 
 def evolve():
@@ -222,8 +227,8 @@ def evolve_balance(res):
         val = np.inf
     best = (board, kings, fen, val)
     error = abs(val - args.odds)
-    print(f"[Generation 0] [Evaluation {val}] [FEN {fen}]")
     gen = 0
+    print(f"[Generation {gen}] [Evaluation {val}] [FEN {fen}]")
     while error > args.error:
         gen += 1
         pop = [best]
@@ -241,11 +246,8 @@ def evolve_balance(res):
 def results(fen):
     val = None
     while val is None:
-        val = evaluate(fen, final=True)
+        val, vis = evaluate(fen, final=True)
     print("RESULTS\n")
-    engine = Stockfish(path=args.stockfish, depth=args.final_depth)
-    engine.set_fen_position(fen)
-    vis = engine.get_board_visual()
     print(vis)
     print("Evaluation:", val)
     print("FEN:", fen)
@@ -258,7 +260,7 @@ def get_args():
     parser.add_argument("--depth", type=int, default=20, help="balance evaluation depth (default 20)")
     parser.add_argument("--final-depth", type=int, default=30, help="final evaluation depth (default 30)")
     parser.add_argument("--seed", type=int, default=None, help="random seed (default random)")
-    parser.add_argument("--odds", type=float, default=0.0, help="target evaluation (default 0.0)")
+    parser.add_argument("--odds", type=float, default=0.1, help="target evaluation (default 0.1)")
     parser.add_argument("--error", type=float, default=0.1, help="target error margin for evaluation (default 0.1)")
     args = parser.parse_args()
     return args
@@ -267,6 +269,7 @@ def get_args():
 def header():
     print(dna)
     print("Genetic Chess")
+    print("Version 1.0.0")
     print("By Santiago Benoit")
     print()
 
@@ -286,6 +289,7 @@ def main():
     print("Random seed:", seed)
     random.seed(seed)
     np.random.seed(seed)
+    time.sleep(1)
     print("\nEvolving structure...\n")
     res = evolve()
     print("\nEvolving balance...\n")
