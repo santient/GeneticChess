@@ -9,7 +9,6 @@ from pymoo.operators.mutation.pm import PM
 from pymoo.operators.repair.rounding import RoundingRepair
 from pymoo.operators.sampling.rnd import IntegerRandomSampling
 from pymoo.optimize import minimize
-import random
 from stockfish import Stockfish, StockfishException
 import time
 
@@ -179,7 +178,7 @@ def evaluate(fen, final=False):
         return val
 
 
-def evolve():
+def evolve_structure():
     problem = ChessProblem()
     algorithm = NSGA2(pop_size=100,
         sampling=IntegerRandomSampling(),
@@ -193,7 +192,7 @@ def evolve():
     return res
 
 
-def mutate_balance(board, kings, fen):
+def mutate_balance(board, kings, fen, dup):
     val = None
     while val is None:
         w_src_i, w_src_j = kings[0]
@@ -213,30 +212,44 @@ def mutate_balance(board, kings, fen):
         board_new[b_src_i, b_src_j] = b_tgt
         remove_backrank_pawns(board_new)
         fen_new = board_to_fen(board_new)
-        if fen_new != fen:
+        if fen_new not in dup:
+            dup.add(fen_new)
             val = evaluate(fen_new)
     return board_new, kings, fen_new, val
 
 
 def evolve_balance(res):
-    board, kings = vector_to_board(res.X[0])
-    remove_backrank_pawns(board)
-    fen = board_to_fen(board)
-    val = evaluate(fen)
-    if val is None:
-        val = np.inf
-    best = (board, kings, fen, val)
+    pop = []
+    dup = set()
+    count = 0
+    for x in res.X:
+        board, kings = vector_to_board(x)
+        remove_backrank_pawns(board)
+        fen = board_to_fen(board)
+        if fen not in dup:
+            dup.add(fen)
+            val = evaluate(fen)
+            if val is None:
+                val = np.inf
+            pop.append((board, kings, fen, val))
+            count += 1
+            if count == 10:
+                break
+    pop = list(sorted(pop, key=lambda x: (abs(x[3] - args.odds), np.random.rand())))
+    best = pop[0]
+    board, kings, fen, val = best
     error = abs(val - args.odds)
     gen = 0
     print(f"[Generation {gen}] [Evaluation {val}] [FEN {fen}]")
     while error > args.error:
         gen += 1
-        pop = [best]
-        for i in range(10):
-            board_new, kings_new, fen_new, val_new = mutate_balance(board, kings, fen)
-            pop.append((board_new, kings_new, fen_new, val_new))
-        random.shuffle(pop)
-        best = list(sorted(enumerate(pop), key=lambda x: (abs(x[1][3] - args.odds), x[0])))[0][1]
+        offspring = []
+        for board, kings, fen, val in pop:
+            board_new, kings_new, fen_new, val_new = mutate_balance(board, kings, fen, dup)
+            offspring.append((board_new, kings_new, fen_new, val_new))
+        pop.extend(offspring)
+        pop = list(sorted(pop, key=lambda x: (abs(x[3] - args.odds), np.random.rand())))[:10]
+        best = pop[0]
         board, kings, fen, val = best
         error = abs(val - args.odds)
         print(f"[Generation {gen}] [Evaluation {val}] [FEN {fen}]")
@@ -260,8 +273,8 @@ def get_args():
     parser.add_argument("--depth", type=int, default=20, help="balance evaluation depth (default 20)")
     parser.add_argument("--final-depth", type=int, default=30, help="final evaluation depth (default 30)")
     parser.add_argument("--seed", type=int, default=None, help="random seed (default random)")
-    parser.add_argument("--odds", type=float, default=0.1, help="target evaluation (default 0.1)")
-    parser.add_argument("--error", type=float, default=0.1, help="target error margin for evaluation (default 0.1)")
+    parser.add_argument("--odds", type=float, default=0.0, help="target evaluation (default 0.0)")
+    parser.add_argument("--error", type=float, default=0.2, help="target error margin for evaluation (default 0.2)")
     args = parser.parse_args()
     return args
 
@@ -287,11 +300,10 @@ def main():
     if seed is None:
         seed = np.random.randint(2**32)
     print("Random seed:", seed)
-    random.seed(seed)
     np.random.seed(seed)
     time.sleep(1)
     print("\nEvolving structure...\n")
-    res = evolve()
+    res = evolve_structure()
     print("\nEvolving balance...\n")
     fen = evolve_balance(res)
     print("\nFinal analysis...\n")
