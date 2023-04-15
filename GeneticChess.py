@@ -17,7 +17,7 @@ PIECES = ["", "P", "N", "B", "R", "Q", "p", "n", "b", "r", "q", "K", "k"]
 WEIGHTS = np.array([32, 8, 2, 2, 2, 1, 8, 2, 2, 2, 1])
 INDICES = np.concatenate([[i] * w for i, w in enumerate(WEIGHTS)])
 PROBS = np.array([16/31, 8/31, 2/31, 2/31, 2/31, 1/31])
-assert math.isclose(sum(PROBS), 1)
+assert math.isclose(PROBS.sum(), 1)
 args = None
 seed = None
 dna = r"""
@@ -233,7 +233,7 @@ def evolve_balance(res):
                 val = np.inf
             pop.append((board, kings, fen, val))
             count += 1
-            if count == 10:
+            if count == 4:
                 break
     pop = list(sorted(pop, key=lambda x: (abs(x[3] - args.odds), np.random.rand())))
     best = pop[0]
@@ -244,11 +244,12 @@ def evolve_balance(res):
     while error > args.error:
         gen += 1
         offspring = []
-        for board, kings, fen, val in pop:
-            board_new, kings_new, fen_new, val_new = mutate_balance(board, kings, fen, dup)
-            offspring.append((board_new, kings_new, fen_new, val_new))
+        for i, (board, kings, fen, val) in enumerate(pop):
+            for j in range(4 - i):
+                board_new, kings_new, fen_new, val_new = mutate_balance(board, kings, fen, dup)
+                offspring.append((board_new, kings_new, fen_new, val_new))
         pop.extend(offspring)
-        pop = list(sorted(pop, key=lambda x: (abs(x[3] - args.odds), np.random.rand())))[:10]
+        pop = list(sorted(pop, key=lambda x: (abs(x[3] - args.odds), np.random.rand())))[:4]
         best = pop[0]
         board, kings, fen, val = best
         error = abs(val - args.odds)
