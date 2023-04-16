@@ -156,26 +156,48 @@ def remove_backrank_pawns(board):
 
 
 def evaluate(fen, final=False):
+    depth = args.final_depth if final else args.depth
     if backrank_pawns(fen):
-        return None
-    engine = Stockfish(path=args.stockfish, depth=(args.final_depth if final else args.depth))
+        return None, None
+    engine = Stockfish(path=args.stockfish, depth=depth)
     if not engine.is_fen_valid(fen):
-        return None
+        return None, None
     try:
         engine.set_fen_position(fen)
-        val = engine.get_evaluation()
+        if final:
+            val = engine.get_evaluation()
+            if val["type"] != "cp":
+                return None, None
+            val = val["value"] / 100
+        else:
+            if args.stable:
+                error = np.empty(depth)
+                for d in range(depth):
+                    engine.set_depth(d + 1)
+                    val = engine.get_evaluation()
+                    if val["type"] != "cp":
+                        return None, None
+                    if val["value"] == 0:
+                        return None, None
+                    val = val["value"] / 100
+                    error[d] = abs(val - args.odds)
+                error = error.mean()
+                error = round(error, 4)
+            else:
+                val = engine.get_evaluation()
+                if val["type"] != "cp":
+                    return None, None
+                if val["value"] == 0:
+                    return None, None
+                val = val["value"] / 100
+                error = abs(val - args.odds)
     except StockfishException:
-        return None
-    if val["type"] != "cp":
-        return None
-    if not final and val["value"] == 0:
-        return None
-    val = val["value"] / 100
+        return None, None
     if final:
         vis = engine.get_board_visual()
         return val, vis
     else:
-        return val
+        return val, error
 
 
 def evolve_structure():
@@ -192,30 +214,31 @@ def evolve_structure():
     return res
 
 
-def mutate_balance(board, kings, fen, dup):
+def mutate_balance(board, kings, fen, dup, rate=1):
     val = None
     while val is None:
-        w_src_i, w_src_j = kings[0]
-        while w_src_i == kings[0, 0] and w_src_j == kings[0, 1]:
-            w_src_i = np.random.randint(4, 8)
-            w_src_j = np.random.randint(8)
-        b_src_i, b_src_j = kings[1]
-        while b_src_i == kings[1, 0] and b_src_j == kings[1, 1]:
-            b_src_i = np.random.randint(4)
-            b_src_j = np.random.randint(8)
-        w_tgt = np.random.choice(6, p=PROBS)
-        b_tgt = np.random.choice(6, p=PROBS)
-        if b_tgt > 0:
-            b_tgt += 5
         board_new = board.copy()
-        board_new[w_src_i, w_src_j] = w_tgt
-        board_new[b_src_i, b_src_j] = b_tgt
+        for i in range(rate):
+            w_src_i, w_src_j = kings[0]
+            while w_src_i == kings[0, 0] and w_src_j == kings[0, 1]:
+                w_src_i = np.random.randint(4, 8)
+                w_src_j = np.random.randint(8)
+            b_src_i, b_src_j = kings[1]
+            while b_src_i == kings[1, 0] and b_src_j == kings[1, 1]:
+                b_src_i = np.random.randint(4)
+                b_src_j = np.random.randint(8)
+            w_tgt = np.random.choice(6, p=PROBS)
+            b_tgt = np.random.choice(6, p=PROBS)
+            if b_tgt > 0:
+                b_tgt += 5
+            board_new[w_src_i, w_src_j] = w_tgt
+            board_new[b_src_i, b_src_j] = b_tgt
         remove_backrank_pawns(board_new)
         fen_new = board_to_fen(board_new)
         if fen_new not in dup:
             dup.add(fen_new)
-            val = evaluate(fen_new)
-    return board_new, kings, fen_new, val
+            val, error = evaluate(fen_new)
+    return board_new, kings, fen_new, val, error
 
 
 def evolve_balance(res):
@@ -228,39 +251,36 @@ def evolve_balance(res):
         fen = board_to_fen(board)
         if fen not in dup:
             dup.add(fen)
-            val = evaluate(fen)
+            val, error = evaluate(fen)
             if val is None:
-                val = np.inf
-            pop.append((board, kings, fen, val))
+                error = np.inf
+            pop.append((board, kings, fen, val, error))
             count += 1
-            if count == 4:
+            if count == 5:
                 break
-    pop = list(sorted(pop, key=lambda x: (abs(x[3] - args.odds), np.random.rand())))
+    pop = list(sorted(pop, key=lambda x: (x[4], np.random.rand())))
     best = pop[0]
-    board, kings, fen, val = best
-    error = abs(val - args.odds)
+    board, kings, fen, val, error = best
     gen = 0
-    print(f"[Generation {gen}] [Evaluation {val}] [FEN {fen}]")
+    print(f"[Generation {gen}] [Evaluation {val}] [Error {error}] [FEN {fen}]")
     while error > args.error:
         gen += 1
         offspring = []
-        for i, (board, kings, fen, val) in enumerate(pop):
-            for j in range(4 - i):
-                board_new, kings_new, fen_new, val_new = mutate_balance(board, kings, fen, dup)
-                offspring.append((board_new, kings_new, fen_new, val_new))
+        for i, (board, kings, fen, val, error) in enumerate(pop):
+            for j in range(5 - i):
+                board_new, kings_new, fen_new, val_new, error_new = mutate_balance(board, kings, fen, dup)
+                offspring.append((board_new, kings_new, fen_new, val_new, error_new))
         pop.extend(offspring)
-        pop = list(sorted(pop, key=lambda x: (abs(x[3] - args.odds), np.random.rand())))[:4]
+        pop = list(sorted(pop, key=lambda x: (x[4], np.random.rand())))[:5]
         best = pop[0]
-        board, kings, fen, val = best
-        error = abs(val - args.odds)
-        print(f"[Generation {gen}] [Evaluation {val}] [FEN {fen}]")
+        board, kings, fen, val, error = best
+        print(f"[Generation {gen}] [Evaluation {val}] [Error {error}] [FEN {fen}]")
     return fen
 
 
 def results(fen):
-    val = None
-    while val is None:
-        val, vis = evaluate(fen, final=True)
+    val, vis = evaluate(fen, final=True)
+    assert val is not None
     print("RESULTS\n")
     print(vis)
     print("Evaluation:", val)
@@ -276,6 +296,7 @@ def get_args():
     parser.add_argument("--seed", type=int, default=None, help="random seed (default random)")
     parser.add_argument("--odds", type=float, default=0.0, help="target evaluation (default 0.0)")
     parser.add_argument("--error", type=float, default=0.2, help="target error margin for evaluation (default 0.2)")
+    parser.add_argument("--stable", action="store_true", help="search for more \"stable\" balance (might take a while!)")
     args = parser.parse_args()
     return args
 
@@ -283,7 +304,7 @@ def get_args():
 def header():
     print(dna)
     print("Genetic Chess")
-    print("Version 1.0.0")
+    # print("Version 1.0.0")
     print("By Santiago Benoit")
     print()
 
