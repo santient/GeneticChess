@@ -1,5 +1,6 @@
 import argparse
 import io
+import itertools
 import math
 import numpy as np
 from pymoo.algorithms.moo.nsga2 import NSGA2
@@ -214,31 +215,60 @@ def evolve_structure():
     return res
 
 
+def get_adjacent(i, j, bounds):
+    adj = itertools.product(range(max(i - 1, bounds[0]), min(i + 2, bounds[1])), range(max(i - 1, bounds[2]), min(i + 2, bounds[3])))
+    adj = list(filter(lambda x: x[0] != i or x[1] != j, adj))
+    return adj
+
+
 def mutate_balance(board, kings, fen, dup, rate=1):
     val = None
     while val is None:
         board_new = board.copy()
+        kings_new = kings.copy()
         for i in range(rate):
-            w_src_i, w_src_j = kings[0]
-            while w_src_i == kings[0, 0] and w_src_j == kings[0, 1]:
-                w_src_i = np.random.randint(4, 8)
-                w_src_j = np.random.randint(8)
-            b_src_i, b_src_j = kings[1]
-            while b_src_i == kings[1, 0] and b_src_j == kings[1, 1]:
-                b_src_i = np.random.randint(4)
-                b_src_j = np.random.randint(8)
-            w_tgt = np.random.choice(6, p=PROBS)
-            b_tgt = np.random.choice(6, p=PROBS)
-            if b_tgt > 0:
-                b_tgt += 5
-            board_new[w_src_i, w_src_j] = w_tgt
-            board_new[b_src_i, b_src_j] = b_tgt
+            w_src_i = np.random.randint(4, 8)
+            w_src_j = np.random.randint(8)
+            w_src = board_new[w_src_i, w_src_j]
+            b_src_i = np.random.randint(4)
+            b_src_j = np.random.randint(8)
+            b_src = board_new[b_src_i, b_src_j]
+            w_swap = np.random.rand() > 0.5
+            b_swap = np.random.rand() > 0.5
+            if w_swap or w_src == 11:
+                adj = get_adjacent(w_src_i, w_src_j, (4, 8, 0, 8))
+                w_tgt_i, w_tgt_j = adj[np.random.choice(len(adj))]
+                w_tgt = board_new[w_tgt_i, w_tgt_j]
+                board_new[w_src_i, w_src_j] = w_tgt
+                board_new[w_tgt_i, w_tgt_j] = w_src
+                if w_src == 11:
+                    kings_new[0] = (w_tgt_i, w_tgt_j)
+                if w_tgt == 11:
+                    kings_new[0] = (w_src_i, w_src_j)
+            else:
+                w_tgt = np.random.choice(6, p=PROBS)
+                board_new[w_src_i, w_src_j] = w_tgt
+            if b_swap or b_src == 12:
+                adj = get_adjacent(b_src_i, b_src_j, (0, 4, 0, 8))
+                b_tgt_i, b_tgt_j = adj[np.random.choice(len(adj))]
+                b_tgt = board_new[b_tgt_i, b_tgt_j]
+                board_new[b_src_i, b_src_j] = b_tgt
+                board_new[b_tgt_i, b_tgt_j] = b_src
+                if b_src == 12:
+                    kings_new[1] = (b_tgt_i, b_tgt_j)
+                if b_tgt == 12:
+                    kings_new[1] = (b_src_i, b_src_j)
+            else:
+                b_tgt = np.random.choice(6, p=PROBS)
+                if b_tgt > 0:
+                    b_tgt += 5
+                board_new[b_src_i, b_src_j] = b_tgt
         remove_backrank_pawns(board_new)
         fen_new = board_to_fen(board_new)
         if fen_new not in dup:
             dup.add(fen_new)
             val, error = evaluate(fen_new)
-    return board_new, kings, fen_new, val, error
+    return board_new, kings_new, fen_new, val, error
 
 
 def evolve_balance(res):
@@ -280,7 +310,7 @@ def evolve_balance(res):
 
 def results(fen):
     val, vis = evaluate(fen, final=True)
-    assert val is not None
+    assert val is not None, f"final evaluation failed: {fen}"
     print("RESULTS\n")
     print(vis)
     print("Evaluation:", val)
