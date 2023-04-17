@@ -233,42 +233,45 @@ def mutate_balance(board, kings, fen, dup, rate=1):
         board_new = board.copy()
         kings_new = kings.copy()
         for i in range(rate):
-            w_src_i = np.random.randint(4, 8)
-            w_src_j = np.random.randint(8)
-            w_src = board_new[w_src_i, w_src_j]
-            b_src_i = np.random.randint(4)
-            b_src_j = np.random.randint(8)
-            b_src = board_new[b_src_i, b_src_j]
-            w_swap = np.random.rand() > 0.5
-            b_swap = np.random.rand() > 0.5
-            if w_swap or w_src == 11:
-                adj = get_adjacent(w_src_i, w_src_j, (4, 8, 0, 8))
-                w_tgt_i, w_tgt_j = adj[np.random.choice(len(adj))]
-                w_tgt = board_new[w_tgt_i, w_tgt_j]
-                board_new[w_src_i, w_src_j] = w_tgt
-                board_new[w_tgt_i, w_tgt_j] = w_src
-                if w_src == 11:
-                    kings_new[0] = (w_tgt_i, w_tgt_j)
-                if w_tgt == 11:
-                    kings_new[0] = (w_src_i, w_src_j)
-            else:
-                w_tgt = np.random.choice(6, p=PROBS)
-                board_new[w_src_i, w_src_j] = w_tgt
-            if b_swap or b_src == 12:
-                adj = get_adjacent(b_src_i, b_src_j, (0, 4, 0, 8))
-                b_tgt_i, b_tgt_j = adj[np.random.choice(len(adj))]
-                b_tgt = board_new[b_tgt_i, b_tgt_j]
-                board_new[b_src_i, b_src_j] = b_tgt
-                board_new[b_tgt_i, b_tgt_j] = b_src
-                if b_src == 12:
-                    kings_new[1] = (b_tgt_i, b_tgt_j)
-                if b_tgt == 12:
-                    kings_new[1] = (b_src_i, b_src_j)
-            else:
-                b_tgt = np.random.choice(6, p=PROBS)
-                if b_tgt > 0:
-                    b_tgt += 5
-                board_new[b_src_i, b_src_j] = b_tgt
+            do_white, do_black = [(True, True), (True, False), (False, True)][np.random.choice(3, p=(0.5, 0.25, 0.25))]
+            if do_white:
+                w_src_i = np.random.randint(4, 8)
+                w_src_j = np.random.randint(8)
+                w_src = board_new[w_src_i, w_src_j]
+                w_swap = bool(np.random.randint(2))
+                if w_swap or w_src == 11:
+                    adj = get_adjacent(w_src_i, w_src_j, (4, 8, 0, 8))
+                    w_tgt_i, w_tgt_j = adj[np.random.choice(len(adj))]
+                    w_tgt = board_new[w_tgt_i, w_tgt_j]
+                    board_new[w_src_i, w_src_j] = w_tgt
+                    board_new[w_tgt_i, w_tgt_j] = w_src
+                    if w_src == 11:
+                        kings_new[0] = (w_tgt_i, w_tgt_j)
+                    if w_tgt == 11:
+                        kings_new[0] = (w_src_i, w_src_j)
+                else:
+                    w_tgt = np.random.choice(6, p=PROBS)
+                    board_new[w_src_i, w_src_j] = w_tgt
+            if do_black:
+                b_src_i = np.random.randint(4)
+                b_src_j = np.random.randint(8)
+                b_src = board_new[b_src_i, b_src_j]
+                b_swap = bool(np.random.randint(2))
+                if b_swap or b_src == 12:
+                    adj = get_adjacent(b_src_i, b_src_j, (0, 4, 0, 8))
+                    b_tgt_i, b_tgt_j = adj[np.random.choice(len(adj))]
+                    b_tgt = board_new[b_tgt_i, b_tgt_j]
+                    board_new[b_src_i, b_src_j] = b_tgt
+                    board_new[b_tgt_i, b_tgt_j] = b_src
+                    if b_src == 12:
+                        kings_new[1] = (b_tgt_i, b_tgt_j)
+                    if b_tgt == 12:
+                        kings_new[1] = (b_src_i, b_src_j)
+                else:
+                    b_tgt = np.random.choice(6, p=PROBS)
+                    if b_tgt > 0:
+                        b_tgt += 5
+                    board_new[b_src_i, b_src_j] = b_tgt
         remove_backrank_pawns(board_new)
         fen_new = board_to_fen(board_new)
         if fen_new not in dup:
