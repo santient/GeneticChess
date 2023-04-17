@@ -162,6 +162,7 @@ def evaluate(fen, cutoff=None, final=False):
     if backrank_pawns(fen):
         return None, None
     engine = Stockfish(path=args.stockfish, depth=depth)
+    engine.update_engine_parameters({"Threads": args.threads})
     if not engine.is_fen_valid(fen):
         return None, None
     board = chess.Board(fen)
@@ -353,6 +354,7 @@ def get_args():
     parser.add_argument("--stockfish", type=str, default="./stockfish", help="path to stockfish binary (default ./stockfish)")
     parser.add_argument("--depth", type=int, default=20, help="balance evaluation depth (default 20)")
     parser.add_argument("--final-depth", type=int, default=30, help="final evaluation depth (default 30)")
+    parser.add_argument("--threads", type=int, default=4, help="engine CPU threads (default 4)")
     parser.add_argument("--seed", type=int, default=None, help="random seed (default random)")
     parser.add_argument("--odds", type=float, default=0.0, help="target evaluation (default 0.0)")
     parser.add_argument("--error", type=float, default=0.2, help="target error margin for evaluation (default 0.2)")
@@ -375,7 +377,7 @@ def main():
     header()
     args = get_args()
     print("Arguments:", args)
-    engine = Stockfish(path=args.stockfish, depth=args.depth)
+    engine = Stockfish(path=args.stockfish)
     print("Stockfish version:", engine.get_stockfish_major_version())
     del engine
     seed = args.seed
