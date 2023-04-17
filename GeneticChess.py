@@ -172,7 +172,8 @@ def evaluate(fen, final=False):
             val = val["value"] / 100
         else:
             if args.stable:
-                error = np.empty(depth)
+                error = 0
+                count = 0
                 for d in range(depth):
                     engine.set_depth(d + 1)
                     val = engine.get_evaluation()
@@ -181,8 +182,9 @@ def evaluate(fen, final=False):
                     if val["value"] == 0:
                         return None, None
                     val = val["value"] / 100
-                    error[d] = abs(val - args.odds)
-                error = error.mean()
+                    error += abs(val - args.odds) * (d + 1)
+                    count += d + 1
+                error /= count
                 error = round(error, 4)
             else:
                 val = engine.get_evaluation()
