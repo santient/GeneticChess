@@ -1,4 +1,5 @@
 import argparse
+import chess
 import io
 import itertools
 import math
@@ -162,6 +163,9 @@ def evaluate(fen, final=False):
         return None, None
     engine = Stockfish(path=args.stockfish, depth=depth)
     if not engine.is_fen_valid(fen):
+        return None, None
+    board = chess.Board(fen)
+    if board.is_check():
         return None, None
     try:
         engine.set_fen_position(fen)
