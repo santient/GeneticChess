@@ -157,7 +157,7 @@ def remove_backrank_pawns(board):
             board[7, i] = 0
 
 
-def evaluate(fen, final=False):
+def evaluate(fen, cutoff=None, final=False):
     depth = args.final_depth if final else args.depth
     if backrank_pawns(fen):
         return None, None
@@ -178,6 +178,7 @@ def evaluate(fen, final=False):
             if args.stable:
                 error = 0
                 count = 0
+                count_total = 1 + np.arange(depth).sum()
                 for d in range(depth):
                     engine.set_depth(d + 1)
                     val = engine.get_evaluation()
@@ -188,6 +189,8 @@ def evaluate(fen, final=False):
                     val = val["value"] / 100
                     error += abs(val - args.odds) * (d + 1)
                     count += d + 1
+                    if cutoff is not None and error / count_total > cutoff:
+                        break
                 error /= count
                 error = round(error, 4)
             else:
@@ -227,9 +230,9 @@ def get_adjacent(i, j, bounds):
     return adj
 
 
-def mutate_balance(board, kings, fen, dup, rate=1):
-    val = None
-    while val is None:
+def mutate_balance(board, kings, dup=None, cutoff=None, rate=1):
+    val_new = None
+    while val_new is None:
         board_new = board.copy()
         kings_new = kings.copy()
         for i in range(rate):
@@ -290,10 +293,11 @@ def mutate_balance(board, kings, fen, dup, rate=1):
                     board_new[b_src_i, b_src_j] = b_tgt
         remove_backrank_pawns(board_new)
         fen_new = board_to_fen(board_new)
-        if fen_new not in dup:
-            dup.add(fen_new)
-            val, error = evaluate(fen_new)
-    return board_new, kings_new, fen_new, val, error
+        if dup is None or fen_new not in dup:
+            if dup is not None:
+                dup.add(fen_new)
+            val_new, error_new = evaluate(fen_new, cutoff=cutoff)
+    return board_new, kings_new, fen_new, val_new, error_new
 
 
 def evolve_balance(res):
@@ -321,9 +325,10 @@ def evolve_balance(res):
     while error > args.error:
         gen += 1
         offspring = []
+        cutoff = pop[-1][4]
         for i, (board, kings, fen, val, error) in enumerate(pop):
             for j in range(5 - i):
-                board_new, kings_new, fen_new, val_new, error_new = mutate_balance(board, kings, fen, dup)
+                board_new, kings_new, fen_new, val_new, error_new = mutate_balance(board, kings, dup=dup, cutoff=cutoff)
                 offspring.append((board_new, kings_new, fen_new, val_new, error_new))
         pop.extend(offspring)
         pop = list(sorted(pop, key=lambda x: (x[4], np.random.rand())))[:5]
