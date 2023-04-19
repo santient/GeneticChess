@@ -128,9 +128,9 @@ def board_to_fen(board):
                     empty += 1
             if empty > 0:
                 s.write(str(empty))
-            s.write('/')
+            s.write("/")
         s.seek(s.tell() - 1)
-        s.write(' w - - 0 1')
+        s.write(" w - - 0 1")
         return s.getvalue()
 
 
@@ -193,7 +193,6 @@ def evaluate(fen, cutoff=None, final=False):
                     if cutoff is not None and error / count_total > cutoff:
                         break
                 error /= count
-                error = round(error, 4)
             else:
                 val = engine.get_evaluation()
                 if val["type"] != "cp":
@@ -208,6 +207,12 @@ def evaluate(fen, cutoff=None, final=False):
         vis = engine.get_board_visual()
         return val, vis
     else:
+        pos, turn, _, _, _, _ = fen.split(" ")
+        if args.flexible and turn == "w":
+            fen2 = pos + " b - - 0 1"
+            val2, error2 = evaluate(fen2, cutoff, final)
+            val = val if val2 is not None else None
+            error = (error + error2) / 2 if error2 is not None else None
         return val, error
 
 
@@ -357,8 +362,9 @@ def get_args():
     parser.add_argument("--threads", type=int, default=4, help="engine CPU threads (default 4)")
     parser.add_argument("--seed", type=int, default=None, help="random seed (default random)")
     parser.add_argument("--odds", type=float, default=0.0, help="target evaluation (default 0.0)")
-    parser.add_argument("--error", type=float, default=0.2, help="target error margin for evaluation (default 0.2)")
+    parser.add_argument("--error", type=float, default=0.3, help="target error margin for evaluation (default 0.3)")
     parser.add_argument("--stable", action="store_true", help="search for more \"stable\" balance (might take a while!)")
+    parser.add_argument("--flexible", action="store_true", help="search for more \"flexible\" balance (might take a while!)")
     args = parser.parse_args()
     return args
 
