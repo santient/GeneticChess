@@ -255,7 +255,7 @@ def mutate_balance(board, kings, dup=None, cutoff=None, rate=1):
                         kings_new[0] = (w_src_i, w_src_j)
                 elif w_type == 1:
                     w_tgt_i, w_tgt_j = w_src_i, w_src_j
-                    while (w_tgt_i == w_src_i and w_tgt_j == w_src_j) or (w_tgt_i == kings[0][0] and w_tgt_j == kings[0][1]):
+                    while (w_tgt_i == w_src_i and w_tgt_j == w_src_j) or (w_tgt_i == kings_new[0][0] and w_tgt_j == kings_new[0][1]):
                         w_tgt_i = np.random.randint(4, 8)
                         w_tgt_j = np.random.randint(8)
                     w_tgt = board_new[w_tgt_i, w_tgt_j]
@@ -281,7 +281,7 @@ def mutate_balance(board, kings, dup=None, cutoff=None, rate=1):
                         kings_new[1] = (b_src_i, b_src_j)
                 elif b_type == 1:
                     b_tgt_i, b_tgt_j = b_src_i, b_src_j
-                    while (b_tgt_i == b_src_i and b_tgt_j == b_src_j) or (b_tgt_i == kings[1][0] and b_tgt_j == kings[1][1]):
+                    while (b_tgt_i == b_src_i and b_tgt_j == b_src_j) or (b_tgt_i == kings_new[1][0] and b_tgt_j == kings_new[1][1]):
                         b_tgt_i = np.random.randint(4)
                         b_tgt_j = np.random.randint(8)
                     b_tgt = board_new[b_tgt_i, b_tgt_j]
