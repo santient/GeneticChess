@@ -11,6 +11,7 @@ from pymoo.operators.mutation.pm import PM
 from pymoo.operators.repair.rounding import RoundingRepair
 from pymoo.operators.sampling.rnd import IntegerRandomSampling
 from pymoo.optimize import minimize
+from pymoo.termination.default import DefaultMultiObjectiveTermination
 from stockfish import Stockfish, StockfishException
 import time
 
@@ -218,13 +219,23 @@ def evaluate(fen, cutoff=None, final=False):
 
 def evolve_structure():
     problem = ChessProblem()
-    algorithm = NSGA2(pop_size=100,
+    algorithm = NSGA2(
+        pop_size=100,
         sampling=IntegerRandomSampling(),
         crossover=SBX(prob=1.0, eta=3.0, vtype=float, repair=RoundingRepair()),
         mutation=PM(prob=1.0, eta=3.0, vtype=float, repair=RoundingRepair()),
         eliminate_duplicates=True)
-    res = minimize(problem,
+    termination = DefaultMultiObjectiveTermination(
+        xtol=1e-8,
+        cvtol=1e-6,
+        ftol=0.0025,
+        period=100,
+        n_max_gen=10000,
+        n_max_evals=1000000)
+    res = minimize(
+        problem,
         algorithm,
+        termination=termination,
         seed=seed,
         verbose=True)
     return res
@@ -328,7 +339,7 @@ def evolve_balance(res):
     board, kings, fen, val, error = best
     gen = 0
     print(f"[Generation {gen}] [Evaluation {val}] [Error {error}] [FEN {fen}]")
-    while error > args.error:
+    while error > args.error or abs(val - args.odds) > args.error:
         gen += 1
         offspring = []
         cutoff = pop[-1][4]
@@ -337,7 +348,7 @@ def evolve_balance(res):
                 board_new, kings_new, fen_new, val_new, error_new = mutate_balance(board, kings, dup=dup, cutoff=cutoff)
                 offspring.append((board_new, kings_new, fen_new, val_new, error_new))
         pop.extend(offspring)
-        pop = list(sorted(pop, key=lambda x: (x[4], np.random.rand())))[:5]
+        pop = list(sorted(pop, key=lambda x: (x[4], abs(x[3] - args.odds), np.random.rand())))[:5]
         best = pop[0]
         board, kings, fen, val, error = best
         print(f"[Generation {gen}] [Evaluation {val}] [Error {error}] [FEN {fen}]")
