@@ -78,7 +78,7 @@ def eval_points(board):
     q = (board == 10).sum()
     w = P * 1 + N * 3 + B * 3 + R * 5 + Q * 9
     b = p * 1 + n * 3 + b * 3 + r * 5 + q * 9
-    return abs(w - 40) + abs(b - 40)
+    return max(abs(w - 39) - 1, 0) + max(abs(b - 39) - 1, 0)
 
 
 def eval_kings(kings):
@@ -329,6 +329,7 @@ def evolve_balance(res):
             dup.add(fen)
             val, error = evaluate(fen)
             if val is None:
+                val = np.inf
                 error = np.inf
             pop.append((board, kings, fen, val, error))
             count += 1
