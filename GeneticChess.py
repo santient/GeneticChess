@@ -5,6 +5,7 @@ import itertools
 import math
 import numpy as np
 from pymoo.algorithms.moo.nsga2 import NSGA2
+from pymoo.config import Config
 from pymoo.core.problem import ElementwiseProblem
 from pymoo.operators.crossover.sbx import SBX
 from pymoo.operators.mutation.pm import PM
@@ -16,6 +17,7 @@ from stockfish import Stockfish, StockfishException
 import time
 
 
+Config.warnings["not_compiled"] = False
 PIECES = ["", "P", "N", "B", "R", "Q", "p", "n", "b", "r", "q", "K", "k"]
 WEIGHTS = np.array([32, 8, 2, 2, 2, 1, 8, 2, 2, 2, 1])
 INDICES = np.concatenate([[i] * w for i, w in enumerate(WEIGHTS)])
@@ -44,16 +46,30 @@ class ChessProblem(ElementwiseProblem):
 
     def _evaluate(self, x, out, *args, **kwargs):
         board, kings = vector_to_board(x)
-        f1 = eval_pawns(board)
+        f1 = eval_backrank(board)
         remove_backrank_pawns(board)
-        f2 = eval_points(board)
-        f3 = eval_empty(board)
-        f4 = eval_kings(kings) + eval_proximity(board, kings) + eval_offside(board)
+        f2 = eval_points(board) + regularize()
+        f3 = eval_empty(board) + eval_arrays(board) + regularize()
+        f4 = eval_pawns(board) + eval_kings(kings) + eval_safety(board, kings) + eval_ranks(board) + eval_offside(board) + regularize()
         out["F"] = [f1, f2, f3, f4]
+
+
+def regularize():
+    return args.noise * np.random.randn()
 
 
 def eval_empty(board):
     return abs((board == 0).sum() - 32)
+
+
+def eval_arrays(board):
+    rows = sum(int(board[i, :].sum() == 0) for i in range(8))
+    cols = sum(int(board[:, j].sum() == 0) for j in range(8))
+    return rows + cols
+
+
+def eval_backrank(board):
+    return count_backrank_pawns(board)
 
 
 def eval_pawns(board):
@@ -78,27 +94,49 @@ def eval_points(board):
     q = (board == 10).sum()
     w = P * 1 + N * 3 + B * 3 + R * 5 + Q * 9
     b = p * 1 + n * 3 + b * 3 + r * 5 + q * 9
-    return max(abs(w - 39) - 1, 0) + max(abs(b - 39) - 1, 0)
+    return abs(w - 39) + abs(b - 39)
 
 
 def eval_kings(kings):
     return kings[1, 0] + 7 - kings[0, 0]
 
 
-def eval_proximity(board, kings):
+def eval_safety(board, kings):
     total = 0
-    count = 0
     for i in range(board.shape[0]):
         for j in range(board.shape[1]):
             cell = board[i, j]
             if cell > 0 and cell <= 10:
-                count += 1
                 if cell <= 5:
-                    total += abs(i - kings[0, 0]) + abs(j - kings[0, 1])
+                    total -= (1 if i <= kings[0, 0] and abs(i - kings[0, 0]) <= 1 and abs(j - kings[0, 1]) <= 1 else 0)
                 else:
-                    total += abs(i - kings[1, 0]) + abs(j - kings[1, 1])
-    if count > 0:
-        return abs(total / count - 3)
+                    total -= (1 if i >= kings[1, 0] and abs(i - kings[1, 0]) <= 1 and abs(j - kings[1, 1]) <= 1 else 0)
+    return total
+
+
+def eval_ranks(board):
+    wtotal = 0
+    wcount = 0
+    btotal = 0
+    bcount = 0
+    for i in range(board.shape[0]):
+        for j in range(board.shape[1]):
+            cell = board[i, j]
+            if cell > 0 and cell <= 10:
+                if cell <= 5:
+                    wcount += 1
+                    if cell == 1:
+                        wtotal += abs(i - 6)
+                    else:
+                        wtotal += 7 - i
+                else:
+                    bcount += 1
+                    if cell == 6:
+                        btotal += abs(i - 1)
+                    else:
+                        btotal += i
+    if wcount > 0 and bcount > 0:
+        return wtotal / wcount + btotal / bcount
     else:
         return 100
 
@@ -181,16 +219,16 @@ def evaluate(fen, cutoff=None, final=False):
                 error = 0
                 count = 0
                 count_total = 1 + np.arange(depth).sum()
-                for d in range(depth):
-                    engine.set_depth(d + 1)
+                for d in range(1, depth + 1):
+                    engine.set_depth(d)
                     val = engine.get_evaluation()
                     if val["type"] != "cp":
                         return None, None
                     if val["value"] == 0:
                         return None, None
                     val = val["value"] / 100
-                    error += abs(val - args.odds) * (d + 1)
-                    count += d + 1
+                    error += d * abs(val - args.odds)
+                    count += d
                     if cutoff is not None and error / count_total > cutoff:
                         break
                 error /= count
@@ -335,12 +373,12 @@ def evolve_balance(res):
             count += 1
             if count == 5:
                 break
-    pop = list(sorted(pop, key=lambda x: (x[4], np.random.rand())))
+    pop = list(sorted(pop, key=lambda x: (x[4], abs(x[3] - args.odds), np.random.rand())))
     best = pop[0]
     board, kings, fen, val, error = best
     gen = 0
     print(f"[Generation {gen}] [Evaluation {val}] [Error {error}] [FEN {fen}]")
-    while error > args.error or abs(val - args.odds) > args.error:
+    while error >= 2 * args.error or abs(val - args.odds) >= args.error:
         gen += 1
         offspring = []
         cutoff = pop[-1][4]
@@ -349,7 +387,7 @@ def evolve_balance(res):
                 board_new, kings_new, fen_new, val_new, error_new = mutate_balance(board, kings, dup=dup, cutoff=cutoff)
                 offspring.append((board_new, kings_new, fen_new, val_new, error_new))
         pop.extend(offspring)
-        pop = list(sorted(pop, key=lambda x: (x[4], abs(x[3] - args.odds), np.random.rand())))[:5]
+        pop = list(sorted(pop, key=lambda x: (x[4], abs(x[3] - args.odds), np.random.rand()) if x[4] >= 2 * args.error else (abs(x[3] - args.odds), x[4], np.random.rand())))[:5]
         best = pop[0]
         board, kings, fen, val, error = best
         print(f"[Generation {gen}] [Evaluation {val}] [Error {error}] [FEN {fen}]")
@@ -374,7 +412,8 @@ def get_args():
     parser.add_argument("--threads", type=int, default=4, help="engine CPU threads (default 4)")
     parser.add_argument("--seed", type=int, default=None, help="random seed (default random)")
     parser.add_argument("--odds", type=float, default=0.0, help="target evaluation (default 0.0)")
-    parser.add_argument("--error", type=float, default=0.3, help="target error margin for evaluation (default 0.3)")
+    parser.add_argument("--error", type=float, default=0.25, help="target error margin for evaluation (default 0.25)")
+    parser.add_argument("--noise", type=float, default=0.25, help="noise for regularization (default 0.25)")
     parser.add_argument("--stable", action="store_true", help="search for more \"stable\" balance (might take a while!)")
     parser.add_argument("--flexible", action="store_true", help="search for more \"flexible\" balance (might take a while!)")
     args = parser.parse_args()
