@@ -64,12 +64,6 @@ def eval_empty(board):
     return abs(diff) * (2 if diff < 0 else 1)
 
 
-def eval_arrays(board):
-    rows = sum(int(board[i, :].sum() == 0) for i in range(8))
-    cols = sum(int(board[:, j].sum() == 0) for j in range(8))
-    return rows + cols
-
-
 def eval_backrank(board):
     return count_backrank_pawns(board)
 
@@ -101,19 +95,6 @@ def eval_points(board):
 
 def eval_kings(kings):
     return 2 * (kings[1, 0] + 7 - kings[0, 0])
-
-
-def eval_safety(board, kings):
-    total = 0
-    for i in range(board.shape[0]):
-        for j in range(board.shape[1]):
-            cell = board[i, j]
-            if cell > 0 and cell <= 10:
-                if cell <= 5:
-                    total -= (1 if i <= kings[0, 0] and abs(i - kings[0, 0]) <= 1 and abs(j - kings[0, 1]) <= 1 else 0)
-                else:
-                    total -= (1 if i >= kings[1, 0] and abs(i - kings[1, 0]) <= 1 and abs(j - kings[1, 1]) <= 1 else 0)
-    return total
 
 
 def eval_pawn_ranks(board):
