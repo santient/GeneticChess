@@ -43,23 +43,25 @@ class ChessProblem(ElementwiseProblem):
         xu = np.full(68, 61)
         xu[64:] = 7
         super().__init__(n_var=68, n_obj=4, xl=xl, xu=xu, vtype=int)
+        self.args = args
 
     def _evaluate(self, x, out, *args, **kwargs):
         board, kings = vector_to_board(x)
         f1 = eval_backrank(board)
         remove_backrank_pawns(board)
-        f2 = eval_points(board) + regularize()
-        f3 = eval_empty(board) + regularize()
-        f4 = eval_pawns(board) + 2 * regularize() + eval_pawn_ranks(board) + 2 * regularize() + eval_piece_ranks(board) + 2 * regularize() + eval_kings(kings) + regularize() + eval_offside(board) + regularize()
+        f2 = eval_points(board) + regularize(self.args.noise)
+        f3 = eval_empty(board) + regularize(self.args.noise)
+        f4 = eval_pawns(board) + regularize(2 * self.args.noise) + eval_pawn_ranks(board) + regularize(2 * self.args.noise) + eval_piece_ranks(board) + regularize(2 * self.args.noise) + eval_kings(kings) + regularize(self.args.noise) + eval_offside(board) + regularize(self.args.noise)
         out["F"] = [f1, f2, f3, f4]
 
 
-def regularize():
-    return args.noise * np.random.randn()
+def regularize(noise):
+    return noise * np.random.randn()
 
 
 def eval_empty(board):
-    return abs((board == 0).sum() - 32)
+    diff = (board == 0).sum() - 32
+    return abs(diff) * (2 if diff < 0 else 1)
 
 
 def eval_arrays(board):
@@ -78,7 +80,7 @@ def eval_pawns(board):
     b = (board[1:7] == 6).sum()
     wc = sum(abs((board[1:7, i] == 1).sum() - 1) for i in range(8))
     bc = sum(abs((board[1:7, i] == 6).sum() - 1) for i in range(8))
-    return back + abs(w - 8) + abs(b - 8) + wc + bc
+    return back + abs(w - 8) * (2 if w > 8 else 1) + abs(b - 8) * (2 if b > 8 else 1) + wc + bc
 
 
 def eval_points(board):
@@ -94,7 +96,7 @@ def eval_points(board):
     q = (board == 10).sum()
     w = P * 1 + N * 3 + B * 3 + R * 5 + Q * 9
     b = p * 1 + n * 3 + b * 3 + r * 5 + q * 9
-    return abs(w - 39) + abs(b - 39)
+    return abs(w - 39) * (2 if w < 39 else 1) + abs(b - 39) * (2 if b < 39 else 1)
 
 
 def eval_kings(kings):
@@ -149,7 +151,7 @@ def eval_piece_ranks(board):
                 bcount += 1
                 btotal += i
     if wcount > 0 and bcount > 0:
-        return 7 * (wtotal / wcount + btotal / bcount)
+        return 7 * (wtotal / wcount + btotal / bcount) + abs(wcount - 7) * (2 if wcount < 7 else 1) + abs(bcount - 7) * (2 if bcount < 7 else 1)
     else:
         return 100
 
@@ -244,7 +246,7 @@ def evaluate(fen, cutoff=None, final=False):
                     if val["value"] == 0:
                         return None, None, None
                     val = val["value"] / 100
-                    error += d * abs(val - args.odds)
+                    error += d * abs(val - args.odds) * (2 if args.initiative and val < args.odds else 1)
                     count += d
                     if cutoff is not None and error / count_total > cutoff:
                         return None, None, None
@@ -258,7 +260,7 @@ def evaluate(fen, cutoff=None, final=False):
                 if val["value"] == 0:
                     return None, None, None
                 val = val["value"] / 100
-                error = abs(val - args.odds)
+                error = abs(val - args.odds) * (2 if args.initiative and val < args.odds else 1)
     except StockfishException:
         return None, None, None
     if final:
@@ -274,7 +276,7 @@ def evaluate(fen, cutoff=None, final=False):
             if any(v is None or v == 0 for v in vals):
                 return None, None, None
             vals = [v / 100 for v in vals]
-            errors = [abs(v - args.odds) for v in vals]
+            errors = [abs(v - args.odds) * (2 if args.initiative and v < args.odds else 1) for v in vals]
             error2 = sum(errors) / args.lines
             error += error2
         if args.agnostic:
@@ -288,7 +290,7 @@ def evaluate(fen, cutoff=None, final=False):
             if val2["value"] == 0:
                 return None, None, None
             val2 = val2["value"] / 100
-            error2 = abs(val2 + args.odds)
+            error2 = abs(val2 - args.odds) * (2 if args.initiative and val2 > args.odds else 1)
             error += error2
         error /= terms
         return val, error, co
@@ -306,7 +308,7 @@ def evolve_structure():
         xtol=1e-8,
         cvtol=1e-6,
         ftol=0.0025,
-        period=30,
+        period=50,
         n_max_gen=10000,
         n_max_evals=1000000)
     res = minimize(
@@ -329,7 +331,8 @@ def mutate_balance(board, kings, dup=None, cutoff=None, rate=1):
     while val_new is None:
         board_new = board.copy()
         kings_new = kings.copy()
-        for i in range(rate):
+        iters = 1 + np.random.randint(rate)
+        for i in range(iters):
             do_white, do_black = [(True, True), (True, False), (False, True)][np.random.choice(3, p=(0.5, 0.25, 0.25))]
             if do_white:
                 w_src_i = np.random.randint(4, 8)
@@ -398,6 +401,7 @@ def mutate_balance(board, kings, dup=None, cutoff=None, rate=1):
 
 
 def evolve_balance(res):
+    bottleneck = 5
     pop = []
     dup = set()
     count = 0
@@ -413,26 +417,42 @@ def evolve_balance(res):
                 error = np.inf
             pop.append((board, kings, fen, val, error, co))
             count += 1
-            if count == 5:
+            if count == bottleneck:
                 break
-    pop = list(sorted(pop, key=lambda x: (x[4], abs(x[3] - args.odds), x[5], np.random.rand())))
+    mrate = 1
+    key_unreg = lambda x: \
+        (x[4], abs(x[3] - args.odds), x[5], np.random.rand()) \
+        if x[4] >= 2 * args.error \
+        else (abs(x[3] - args.odds), x[4], x[5], np.random.rand())
+    key_reg = lambda x: \
+        (x[4] + regularize((mrate  - 1) / 10), abs(x[3] - args.odds), x[5], np.random.rand()) \
+        if x[4] >= 2 * args.error \
+        else (abs(x[3] - args.odds) + regularize((mrate  - 1) / 20), x[4], x[5], np.random.rand())
+    pop = list(sorted(pop, key=key_unreg))
     best = pop[0]
     board, kings, fen, val, error, co = best
+    prev = set([x[2] for x in pop])
     gen = 0
-    print(f"[Generation {gen}] [Evaluation {val}] [Error {error}] [FEN {fen}]")
-    while error >= 2 * args.error or abs(val - args.odds) >= args.error:
+    print(f"[Generation {gen}] [Evaluation {val}] [Error {error}] [Mutation Rate {mrate}] [FEN {fen}]")
+    while error >= 2 * args.error or abs(val - args.odds) >= args.error or (args.initiative and val < args.odds):
         gen += 1
         offspring = []
-        cutoff = pop[-1][5]
+        cutoff = max(pop, key=lambda x: x[5] if x[5] is not None else np.inf)[5]
         for i, (board, kings, fen, val, error, co) in enumerate(pop):
-            for j in range(5 - i):
-                board_new, kings_new, fen_new, val_new, error_new, co_new = mutate_balance(board, kings, dup=dup, cutoff=cutoff)
+            for j in range(bottleneck - i):
+                board_new, kings_new, fen_new, val_new, error_new, co_new = mutate_balance(board, kings, dup=dup, cutoff=cutoff, rate=mrate)
                 offspring.append((board_new, kings_new, fen_new, val_new, error_new, co_new))
         pop.extend(offspring)
-        pop = list(sorted(pop, key=lambda x: (x[4], abs(x[3] - args.odds), x[5], np.random.rand()) if x[4] >= 2 * args.error else (abs(x[3] - args.odds), x[4], np.random.rand())))[:5]
-        best = pop[0]
+        pop = list(sorted(pop, key=key_reg))[:bottleneck]
+        best = min(pop, key=key_unreg)
         board, kings, fen, val, error, co = best
-        print(f"[Generation {gen}] [Evaluation {val}] [Error {error}] [FEN {fen}]")
+        curr = set([x[2] for x in pop])
+        if curr == prev:
+            mrate += 1
+        else:
+            mrate = 1
+        prev = curr
+        print(f"[Generation {gen}] [Evaluation {val}] [Error {error}] [Mutation Rate {mrate}] [FEN {fen}]")
     return fen
 
 
@@ -460,6 +480,7 @@ def get_args():
     parser.add_argument("--lines", type=int, default=1, help="lines to evaluate (default 1)")
     parser.add_argument("--stable", action="store_true", help="search for depth-stable evaluation (default false)")
     parser.add_argument("--agnostic", action="store_true", help="search for turn-agnostic evaluation (default false)")
+    parser.add_argument("--initiative", action="store_true", help="search for first-move-initiative evaluation (default false)")
     args = parser.parse_args()
     return args
 
