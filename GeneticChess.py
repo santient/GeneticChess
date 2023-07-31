@@ -49,8 +49,8 @@ class ChessProblem(ElementwiseProblem):
         f1 = eval_backrank(board)
         remove_backrank_pawns(board)
         f2 = eval_points(board) + regularize()
-        f3 = eval_empty(board) + eval_arrays(board) + regularize()
-        f4 = eval_pawns(board) + eval_kings(kings) + eval_safety(board, kings) + eval_ranks(board) + eval_offside(board) + regularize()
+        f3 = eval_empty(board) + regularize()
+        f4 = eval_pawns(board) + 2 * regularize() + eval_pawn_ranks(board) + 2 * regularize() + eval_piece_ranks(board) + 2 * regularize() + eval_kings(kings) + regularize() + eval_offside(board) + regularize()
         out["F"] = [f1, f2, f3, f4]
 
 
@@ -98,7 +98,7 @@ def eval_points(board):
 
 
 def eval_kings(kings):
-    return kings[1, 0] + 7 - kings[0, 0]
+    return 2 * (kings[1, 0] + 7 - kings[0, 0])
 
 
 def eval_safety(board, kings):
@@ -114,7 +114,7 @@ def eval_safety(board, kings):
     return total
 
 
-def eval_ranks(board):
+def eval_pawn_ranks(board):
     wtotal = 0
     wcount = 0
     btotal = 0
@@ -122,27 +122,40 @@ def eval_ranks(board):
     for i in range(board.shape[0]):
         for j in range(board.shape[1]):
             cell = board[i, j]
-            if cell > 0 and cell <= 10:
-                if cell <= 5:
-                    wcount += 1
-                    if cell == 1:
-                        wtotal += abs(i - 6)
-                    else:
-                        wtotal += 7 - i
-                else:
-                    bcount += 1
-                    if cell == 6:
-                        btotal += abs(i - 1)
-                    else:
-                        btotal += i
+            if cell == 1:
+                wcount += 1
+                wtotal += abs(i - 6)
+            elif cell == 6:
+                bcount += 1
+                btotal += abs(i - 1)
     if wcount > 0 and bcount > 0:
-        return wtotal / wcount + btotal / bcount
+        return 8 * (wtotal / wcount + btotal / bcount)
+    else:
+        return 100
+
+
+def eval_piece_ranks(board):
+    wtotal = 0
+    wcount = 0
+    btotal = 0
+    bcount = 0
+    for i in range(board.shape[0]):
+        for j in range(board.shape[1]):
+            cell = board[i, j]
+            if cell > 1 and cell <= 5:
+                wcount += 1
+                wtotal += 7 - i
+            elif cell > 6 and cell <= 10:
+                bcount += 1
+                btotal += i
+    if wcount > 0 and bcount > 0:
+        return 7 * (wtotal / wcount + btotal / bcount)
     else:
         return 100
 
 
 def eval_offside(board):
-    return ((board[:4] > 0) * (board[:4] <= 5)).sum() + ((board[4:] > 5) * (board[4:] <= 10)).sum()
+    return sum((4 - i) * ((board[i] > 0) * (board[i] <= 5)).sum() for i in range(4)) + sum((i - 3) * ((board[i] > 5) * (board[i] <= 10)).sum() for i in range(4, 8))
 
 
 def vector_to_board(x):
@@ -198,23 +211,27 @@ def remove_backrank_pawns(board):
 
 def evaluate(fen, cutoff=None, final=False):
     depth = args.final_depth if final else args.depth
+    pos, turn, _, _, _, _ = fen.split(" ")
+    assert turn == "w"
     if backrank_pawns(fen):
-        return None, None
+        return None, None, None
     engine = Stockfish(path=args.stockfish, depth=depth)
-    engine.update_engine_parameters({"Threads": args.threads})
+    engine.update_engine_parameters({"Threads": args.threads, "Hash": args.hash})
     if not engine.is_fen_valid(fen):
-        return None, None
+        return None, None, None
     board = chess.Board(fen)
     if board.is_check():
-        return None, None
+        return None, None, None
     try:
         engine.set_fen_position(fen)
         if final:
+            engine.set_depth(depth)
             val = engine.get_evaluation()
             if val["type"] != "cp":
-                return None, None
+                return None, None, None
             val = val["value"] / 100
         else:
+            co = None
             if args.stable:
                 error = 0
                 count = 0
@@ -223,36 +240,58 @@ def evaluate(fen, cutoff=None, final=False):
                     engine.set_depth(d)
                     val = engine.get_evaluation()
                     if val["type"] != "cp":
-                        return None, None
+                        return None, None, None
                     if val["value"] == 0:
-                        return None, None
+                        return None, None, None
                     val = val["value"] / 100
                     error += d * abs(val - args.odds)
                     count += d
                     if cutoff is not None and error / count_total > cutoff:
-                        break
+                        return None, None, None
                 error /= count
+                co = error
             else:
+                engine.set_depth(depth)
                 val = engine.get_evaluation()
                 if val["type"] != "cp":
-                    return None, None
+                    return None, None, None
                 if val["value"] == 0:
-                    return None, None
+                    return None, None, None
                 val = val["value"] / 100
                 error = abs(val - args.odds)
     except StockfishException:
-        return None, None
+        return None, None, None
     if final:
         vis = engine.get_board_visual()
-        return val, vis
+        return val, vis, None
     else:
-        pos, turn, _, _, _, _ = fen.split(" ")
-        if args.flexible and turn == "w":
+        terms = 1
+        if args.lines > 1:
+            terms += 1
+            engine.set_depth(depth // 2)
+            moves = engine.get_top_moves(args.lines)
+            vals = [move["Centipawn"] for move in moves]
+            if any(v is None or v == 0 for v in vals):
+                return None, None, None
+            vals = [v / 100 for v in vals]
+            errors = [abs(v - args.odds) for v in vals]
+            error2 = sum(errors) / args.lines
+            error += error2
+        if args.agnostic:
+            terms += 1
             fen2 = pos + " b - - 0 1"
-            val2, error2 = evaluate(fen2, cutoff, final)
-            val = val if val2 is not None else None
-            error = (error + error2) / 2 if error2 is not None else None
-        return val, error
+            engine.set_fen_position(fen2)
+            engine.set_depth(depth // 2)
+            val2 = engine.get_evaluation()
+            if val2["type"] != "cp":
+                return None, None, None
+            if val2["value"] == 0:
+                return None, None, None
+            val2 = val2["value"] / 100
+            error2 = abs(val2 + args.odds)
+            error += error2
+        error /= terms
+        return val, error, co
 
 
 def evolve_structure():
@@ -267,7 +306,7 @@ def evolve_structure():
         xtol=1e-8,
         cvtol=1e-6,
         ftol=0.0025,
-        period=100,
+        period=30,
         n_max_gen=10000,
         n_max_evals=1000000)
     res = minimize(
@@ -351,8 +390,11 @@ def mutate_balance(board, kings, dup=None, cutoff=None, rate=1):
         if dup is None or fen_new not in dup:
             if dup is not None:
                 dup.add(fen_new)
-            val_new, error_new = evaluate(fen_new, cutoff=cutoff)
-    return board_new, kings_new, fen_new, val_new, error_new
+            val_new, error_new, co_new = evaluate(fen_new, cutoff=cutoff)
+            if val_new is None or error_new is None:
+                val_new = np.inf
+                error_new = np.inf
+    return board_new, kings_new, fen_new, val_new, error_new, co_new
 
 
 def evolve_balance(res):
@@ -365,37 +407,37 @@ def evolve_balance(res):
         fen = board_to_fen(board)
         if fen not in dup:
             dup.add(fen)
-            val, error = evaluate(fen)
-            if val is None:
+            val, error, co = evaluate(fen)
+            if val is None or error is None:
                 val = np.inf
                 error = np.inf
-            pop.append((board, kings, fen, val, error))
+            pop.append((board, kings, fen, val, error, co))
             count += 1
             if count == 5:
                 break
-    pop = list(sorted(pop, key=lambda x: (x[4], abs(x[3] - args.odds), np.random.rand())))
+    pop = list(sorted(pop, key=lambda x: (x[4], abs(x[3] - args.odds), x[5], np.random.rand())))
     best = pop[0]
-    board, kings, fen, val, error = best
+    board, kings, fen, val, error, co = best
     gen = 0
     print(f"[Generation {gen}] [Evaluation {val}] [Error {error}] [FEN {fen}]")
     while error >= 2 * args.error or abs(val - args.odds) >= args.error:
         gen += 1
         offspring = []
-        cutoff = pop[-1][4]
-        for i, (board, kings, fen, val, error) in enumerate(pop):
+        cutoff = pop[-1][5]
+        for i, (board, kings, fen, val, error, co) in enumerate(pop):
             for j in range(5 - i):
-                board_new, kings_new, fen_new, val_new, error_new = mutate_balance(board, kings, dup=dup, cutoff=cutoff)
-                offspring.append((board_new, kings_new, fen_new, val_new, error_new))
+                board_new, kings_new, fen_new, val_new, error_new, co_new = mutate_balance(board, kings, dup=dup, cutoff=cutoff)
+                offspring.append((board_new, kings_new, fen_new, val_new, error_new, co_new))
         pop.extend(offspring)
-        pop = list(sorted(pop, key=lambda x: (x[4], abs(x[3] - args.odds), np.random.rand()) if x[4] >= 2 * args.error else (abs(x[3] - args.odds), x[4], np.random.rand())))[:5]
+        pop = list(sorted(pop, key=lambda x: (x[4], abs(x[3] - args.odds), x[5], np.random.rand()) if x[4] >= 2 * args.error else (abs(x[3] - args.odds), x[4], np.random.rand())))[:5]
         best = pop[0]
-        board, kings, fen, val, error = best
+        board, kings, fen, val, error, co = best
         print(f"[Generation {gen}] [Evaluation {val}] [Error {error}] [FEN {fen}]")
     return fen
 
 
 def results(fen):
-    val, vis = evaluate(fen, final=True)
+    val, vis, _ = evaluate(fen, final=True)
     assert val is not None, f"final evaluation failed: {fen}"
     print("RESULTS\n")
     print(vis)
@@ -410,12 +452,14 @@ def get_args():
     parser.add_argument("--depth", type=int, default=20, help="balance evaluation depth (default 20)")
     parser.add_argument("--final-depth", type=int, default=30, help="final evaluation depth (default 30)")
     parser.add_argument("--threads", type=int, default=4, help="engine CPU threads (default 4)")
+    parser.add_argument("--hash", type=int, default=4096, help="engine hash size (default 4096)")
     parser.add_argument("--seed", type=int, default=None, help="random seed (default random)")
     parser.add_argument("--odds", type=float, default=0.0, help="target evaluation (default 0.0)")
     parser.add_argument("--error", type=float, default=0.25, help="target error margin for evaluation (default 0.25)")
-    parser.add_argument("--noise", type=float, default=0.25, help="noise for regularization (default 0.25)")
-    parser.add_argument("--stable", action="store_true", help="search for more \"stable\" balance (might take a while!)")
-    parser.add_argument("--flexible", action="store_true", help="search for more \"flexible\" balance (might take a while!)")
+    parser.add_argument("--noise", type=float, default=1.0, help="noise for regularization (default 1.0)")
+    parser.add_argument("--lines", type=int, default=1, help="lines to evaluate (default 1)")
+    parser.add_argument("--stable", action="store_true", help="search for depth-stable evaluation (default false)")
+    parser.add_argument("--agnostic", action="store_true", help="search for turn-agnostic evaluation (default false)")
     args = parser.parse_args()
     return args
 
