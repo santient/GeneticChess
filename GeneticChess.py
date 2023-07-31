@@ -49,8 +49,8 @@ class ChessProblem(ElementwiseProblem):
         board, kings = vector_to_board(x)
         f1 = eval_backrank(board)
         remove_backrank_pawns(board)
-        f2 = eval_points(board) + regularize(self.args.noise)
-        f3 = eval_empty(board) + regularize(self.args.noise)
+        f2 = eval_points(board) + regularize(2 * self.args.noise)
+        f3 = eval_empty(board) + regularize(2 * self.args.noise)
         f4 = eval_pawns(board) + regularize(2 * self.args.noise) + eval_pawn_ranks(board) + regularize(2 * self.args.noise) + eval_piece_ranks(board) + regularize(2 * self.args.noise) + eval_kings(kings) + regularize(self.args.noise) + eval_offside(board) + regularize(self.args.noise)
         out["F"] = [f1, f2, f3, f4]
 
