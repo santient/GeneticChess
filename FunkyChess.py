@@ -1,6 +1,5 @@
 import argparse
 import chess
-import chess.engine
 import numpy as np
 from stockfish import Stockfish
 
@@ -47,7 +46,7 @@ def opposite_color_bishops(row):
 def get_args():
     parser = argparse.ArgumentParser()
     parser.add_argument("--engine", type=str, default="./stockfish", help="path to Stockfish engine binary (default ./stockfish)")
-    parser.add_argument("--depth", type=int, default=30, help="evaluation depth (default 20)")
+    parser.add_argument("--depth", type=int, default=30, help="evaluation depth (default 30)")
     parser.add_argument("--threads", type=int, default=7, help="engine CPU threads (default 7)")
     parser.add_argument("--hash", type=int, default=8192, help="engine hash size (default 8192)")
     parser.add_argument("--seed", type=int, default=None, help="random seed (default random)")
