@@ -49,6 +49,12 @@ def balance(fen, args):
         print(move)
         print(fen)
     print()
+    turn = fen.split(" ")[1]
+    if turn == "w":
+        print("White to move")
+    elif turn == "b":
+        print("Black to move")
+    print()
     print(engine.get_board_visual())
     print()
     print("Evaluation:", val)
