@@ -74,6 +74,7 @@ def get_args():
     parser.add_argument("--seed", type=int, default=None, help="random seed (default random)")
     parser.add_argument("--odds", type=float, default=0.0, help="target evaluation (default 0.0)")
     parser.add_argument("--tolerance", type=float, default=0.1, help="imbalance tolerance (default 0.1)")
+    parser.add_argument("--out", type=str, default=None, help="output fen to specified file")
     args = parser.parse_args()
     return args
 
@@ -113,6 +114,10 @@ def main():
         shuffled = True
     fen = "".join(black) + "/pppppppp/8/8/8/8/PPPPPPPP/" + "".join(white) + " w - - 0 1"
     fen2 = balance(fen, args)
+    if args.out is not None:
+        with open(args.out, "w") as f:
+            f.write(fen2)
+        print("Wrote FEN to", args.out)
 
 
 if __name__ == "__main__":
