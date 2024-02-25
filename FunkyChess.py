@@ -30,6 +30,9 @@ import secrets
 from stockfish import Stockfish
 
 
+# version = "1.0.0"
+
+
 def balance(fen, args):
     engine = Stockfish(path=args.engine, depth=args.depth, parameters={"Threads": args.threads, "Hash": args.hash})
     engine.set_fen_position(fen)
@@ -80,7 +83,7 @@ def get_args():
     parser.add_argument("--seed", type=int, default=None, help="random seed (default random)")
     parser.add_argument("--odds", type=float, default=0.0, help="target evaluation (default 0.0)")
     parser.add_argument("--tolerance", type=float, default=0.1, help="imbalance tolerance (default 0.1)")
-    parser.add_argument("--out", type=str, default=None, help="output fen to specified file")
+    parser.add_argument("--out", type=str, default=None, help="output FEN to specified file")
     args = parser.parse_args()
     return args
 
@@ -88,7 +91,7 @@ def get_args():
 def header():
     print()
     print("Funky Chess")
-    # print("Version 1.0.0")
+    # print(f"Version {version}")
     print("By Santiago Benoit")
     print()
 
@@ -124,6 +127,7 @@ def main():
         with open(args.out, "w") as f:
             f.write(fen2)
         print("Wrote FEN to", args.out)
+        print()
 
 
 if __name__ == "__main__":
