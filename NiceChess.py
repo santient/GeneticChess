@@ -24,12 +24,14 @@ def evaluation_passed(fen, args):
             return False
         vals = [v / 100 for v in vals]
         errs = [abs(v - args.odds) for v in vals]
-        if depth == args.depth and errs[0] > args.tolerance:
-            del engine
-            return False
-        if any(e > 2 * args.tolerance for e in errs):
-            del engine
-            return False
+        if depth == args.depth:
+            if any(e > args.tolerance for e in errs):
+                del engine
+                return False
+        else:
+            if any(e > 2 * args.tolerance for e in errs):
+                del engine
+                return False
     del engine
     return True
 
@@ -92,7 +94,7 @@ def main():
     print("Random seed:", seed)
     np.random.seed(seed)
     if args.threads > 1:
-        print("Warning: random seed consistency is not guaranteed with threads > 1.")
+        print("Warning: random seed consistency is not guaranteed with threads > 1")
     print("\nGenerating position...\n")
     memo = set()
     white = ["R", "N", "B", "Q", "K", "B", "N", "R"]
@@ -103,13 +105,16 @@ def main():
         fen = "".join(black) + "/pppppppp/8/8/8/8/PPPPPPPP/" + "".join(white) + " w KQkq - 0 1"
     else:
         fen = "".join(black) + "/pppppppp/8/8/8/8/PPPPPPPP/" + "".join(white) + " w - - 0 1"
+    print("\rPositions evaluated:", len(memo), end="", flush=True)
     while not (opposite_color_bishops(white) and opposite_color_bishops(black) and (not args.castling or (king_between_rooks(white) and king_between_rooks(black)))) or (fen in memo) or not (memo.add(fen) is None and evaluation_passed(fen, args)):
+        print("\rPositions evaluated:", len(memo), end="", flush=True)
         np.random.shuffle(white)
         np.random.shuffle(black)
         if args.castling:
             fen = "".join(black) + "/pppppppp/8/8/8/8/PPPPPPPP/" + "".join(white) + " w KQkq - 0 1"
         else:
             fen = "".join(black) + "/pppppppp/8/8/8/8/PPPPPPPP/" + "".join(white) + " w - - 0 1"
+    print("\rPositions evaluated:", len(memo), "\n", flush=True)
     engine = Stockfish(path=args.engine)
     engine.set_fen_position(fen)
     print(engine.get_board_visual())
