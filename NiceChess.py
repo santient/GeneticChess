@@ -1,4 +1,4 @@
-# Nice Chess: Balanced Subset of Transcendental / 960^2 Chess
+# Nice Chess: Balanced Subset of 2880^2 / 960^2 Chess
 # By Santiago Benoit
 
 
@@ -64,7 +64,7 @@ def get_args():
     parser.add_argument("--hash", type=int, default=1024, help="engine hash size (default 1024)")
     parser.add_argument("--seed", type=int, default=None, help="random seed (random by default)")
     parser.add_argument("--odds", type=float, default=0.0, help="target evaluation (default 0.0)")
-    parser.add_argument("--tolerance", type=float, default=0.25, help="imbalance tolerance (default 0.25)")
+    parser.add_argument("--tolerance", type=float, default=0.2, help="imbalance tolerance (default 0.25)")
     parser.add_argument("--castling", action="store_true", help="enable castling (disabled by default)")
     parser.add_argument("--out", type=str, default=None, help="output FEN to specified file")
     args = parser.parse_args()
@@ -94,6 +94,7 @@ def main():
     if args.threads > 1:
         print("Warning: random seed consistency is not guaranteed with threads > 1.")
     print("\nGenerating position...\n")
+    memo = set()
     white = ["R", "N", "B", "Q", "K", "B", "N", "R"]
     black = ["r", "n", "b", "q", "k", "b", "n", "r"]
     np.random.shuffle(white)
@@ -102,7 +103,7 @@ def main():
         fen = "".join(black) + "/pppppppp/8/8/8/8/PPPPPPPP/" + "".join(white) + " w KQkq - 0 1"
     else:
         fen = "".join(black) + "/pppppppp/8/8/8/8/PPPPPPPP/" + "".join(white) + " w - - 0 1"
-    while not (opposite_color_bishops(white) and opposite_color_bishops(black) and (not args.castling or (king_between_rooks(white) and king_between_rooks(black))) and evaluation_passed(fen, args)):
+    while not (opposite_color_bishops(white) and opposite_color_bishops(black) and (not args.castling or (king_between_rooks(white) and king_between_rooks(black)))) or (fen in memo) or not (memo.add(fen) is None and evaluation_passed(fen, args)):
         np.random.shuffle(white)
         np.random.shuffle(black)
         if args.castling:
