@@ -2,8 +2,8 @@
 # By Santiago Benoit
 # Goal: generate randomized starting positions that are "nice": varied, interesting, balanced, potentially asymmetric, and give players many options for how to develop and play.
 # How it works: generate 2880^2 (no castling) or 960^2 (castling) starting position, shuffling both sides independently, which meets the following criteria:
-# - For a given depth d, evaluation of top n moves falls within double tolerance (2t) range from 0.0 (or custom odds specified)
-# - For iterative deepening up to depth d, evaluation of top n moves never fluctuates beyond triple tolerance (3t) range
+# - For a given depth d, evaluation of top n moves falls within tolerance (t) range from 0.0 (or custom odds specified)
+# - For iterative deepening up to depth d, evaluation of top n moves never fluctuates beyond double tolerance (2t) range
 # - Average of all n x d evaluations falls within tolerance (t) range
 
 
@@ -35,10 +35,10 @@ def evaluation_passed(fen, args):
             vals = [v / 100 for v in vals]
             errs = [abs(v - args.odds) for v in vals]
             if depth == args.depth:
-                if any(e > 2 * args.tolerance for e in errs):
+                if any(e > args.tolerance for e in errs):
                     return False
             else:
-                if any(e > 3 * args.tolerance for e in errs):
+                if any(e > 2 * args.tolerance for e in errs):
                     return False
             result.extend(errs)
         avg = mean(result)
