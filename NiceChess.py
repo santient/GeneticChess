@@ -2,9 +2,9 @@
 # By Santiago Benoit
 # Goal: generate randomized starting positions that are "nice": varied, interesting, balanced, potentially asymmetric, and give players many options for how to develop and play.
 # How it works: generate 2880^2 (no castling) or 960^2 (castling) starting position, shuffling both sides independently, which meets the following criteria:
-# - For a given depth d, evaluation of top n moves falls within a certain tolerance t from 0.0 (or custom odds specified), called the tolerance range
-# - For iterative deepening up to depth d, evaluation of top n moves never fluctuates beyond double the tolerance range
-# - Average of all n x d evaluations falls within the tolerance range
+# - For a given depth d, evaluation of top n moves falls within double tolerance (2t) range from 0.0 (or custom odds specified)
+# - For iterative deepening up to depth d, evaluation of top n moves never fluctuates beyond triple tolerance (3t) range
+# - Average of all n x d evaluations falls within tolerance (t) range
 
 
 import argparse
@@ -35,10 +35,10 @@ def evaluation_passed(fen, args):
             vals = [v / 100 for v in vals]
             errs = [abs(v - args.odds) for v in vals]
             if depth == args.depth:
-                if any(e > args.tolerance for e in errs):
+                if any(e > 2 * args.tolerance for e in errs):
                     return False
             else:
-                if any(e > 2 * args.tolerance for e in errs):
+                if any(e > 3 * args.tolerance for e in errs):
                     return False
             result.extend(errs)
         avg = mean(result)
@@ -79,7 +79,7 @@ def get_args():
     parser.add_argument("--hash", type=int, default=1024, help="engine hash size (default 1024)")
     parser.add_argument("--seed", type=int, default=None, help="random seed (random by default)")
     parser.add_argument("--odds", type=float, default=0.0, help="target evaluation (default 0.0)")
-    parser.add_argument("--tolerance", type=float, default=0.2, help="imbalance tolerance (default 0.2)")
+    parser.add_argument("--tolerance", type=float, default=0.25, help="imbalance tolerance (default 0.25)")
     parser.add_argument("--castling", action="store_true", help="enable castling (disabled by default)")
     parser.add_argument("--out", type=str, default=None, help="output FEN to specified file")
     args = parser.parse_args()
