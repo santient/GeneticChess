@@ -1,5 +1,10 @@
 # Nice Chess: Balanced Subset of 2880^2 / 960^2 Chess
 # By Santiago Benoit
+# Goal: generate randomized starting positions that are "nice": varied, interesting, balanced, potentially asymmetric, and give players many options for how to develop and play.
+# How it works: generate 2880^2 (no castling) or 960^2 (castling) starting position, shuffling both sides independently, which meets the following criteria:
+# - For a given depth d, evaluation of top n moves falls within a certain tolerance t from 0.0 (or custom odds specified), called the tolerance range
+# - For iterative deepening up to depth d, evaluation of top n moves never fluctuates beyond double the tolerance range
+# - Average of all n x d evaluations falls within the tolerance range
 
 
 import argparse
@@ -12,28 +17,36 @@ from stockfish import Stockfish
 # version = "1.0.0"
 
 
+def mean(xs):
+    return sum(xs) / len(xs)
+
+
 def evaluation_passed(fen, args):
     engine = Stockfish(path=args.engine, depth=args.depth, parameters={"Threads": args.threads, "Hash": args.hash, "UCI_Chess960": str(args.castling).lower()})
     engine.set_fen_position(fen)
-    for depth in range(1, args.depth + 1):
-        engine.set_depth(depth)
-        moves = engine.get_top_moves(args.lines)
-        vals = [move["Centipawn"] for move in moves]
-        if any(v is None for v in vals):
-            del engine
+    try:
+        result = []
+        for depth in range(1, args.depth + 1):
+            engine.set_depth(depth)
+            moves = engine.get_top_moves(args.lines)
+            vals = [move["Centipawn"] for move in moves]
+            if any(v is None for v in vals):
+                return False
+            vals = [v / 100 for v in vals]
+            errs = [abs(v - args.odds) for v in vals]
+            if depth == args.depth:
+                if any(e > args.tolerance for e in errs):
+                    return False
+            else:
+                if any(e > 2 * args.tolerance for e in errs):
+                    return False
+            result.extend(errs)
+        avg = mean(result)
+        if avg > args.tolerance:
             return False
-        vals = [v / 100 for v in vals]
-        errs = [abs(v - args.odds) for v in vals]
-        if depth == args.depth:
-            if any(e > args.tolerance for e in errs):
-                del engine
-                return False
-        else:
-            if any(e > 2 * args.tolerance for e in errs):
-                del engine
-                return False
-    del engine
-    return True
+        return True
+    finally:
+        del engine
 
 
 def opposite_color_bishops(row):
@@ -66,7 +79,7 @@ def get_args():
     parser.add_argument("--hash", type=int, default=1024, help="engine hash size (default 1024)")
     parser.add_argument("--seed", type=int, default=None, help="random seed (random by default)")
     parser.add_argument("--odds", type=float, default=0.0, help="target evaluation (default 0.0)")
-    parser.add_argument("--tolerance", type=float, default=0.2, help="imbalance tolerance (default 0.25)")
+    parser.add_argument("--tolerance", type=float, default=0.2, help="imbalance tolerance (default 0.2)")
     parser.add_argument("--castling", action="store_true", help="enable castling (disabled by default)")
     parser.add_argument("--out", type=str, default=None, help="output FEN to specified file")
     args = parser.parse_args()
